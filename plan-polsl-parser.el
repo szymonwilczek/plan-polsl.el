@@ -61,7 +61,7 @@
 
 (defun plan-polsl-parser-extract-sections (text)
   "Extract lab/group section numbers from TEXT (e.g. \"sek.10,11\" or \"sek4\" -> '(\"10\" \"11\"))."
-  (if (string-match "(sek\\.?\\s*\\([0-9, ]+\\))" (or text ""))
+  (if (string-match "(sek\\.?[ \t\n]*\\([0-9, ]+\\))" (or text ""))
       (split-string (match-string 1 text) "[, ]+" t)
     nil))
 
