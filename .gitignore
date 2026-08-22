@@ -1,0 +1,12 @@
+*.elc
+
+*~
+.#*
+\#*\#
+
+plan-polsl-autoloads.el
+/dist/
+/.cask/
+/.elpa/
+
+.dir-locals.el
