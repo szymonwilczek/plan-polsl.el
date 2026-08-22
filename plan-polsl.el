@@ -18,6 +18,11 @@
 
 (require 'cl-lib)
 
+(eval-and-compile
+  (let ((dir (file-name-directory (or load-file-name buffer-file-name default-directory))))
+    (when (and dir (file-directory-p dir))
+      (add-to-list 'load-path dir))))
+
 (defgroup plan-polsl nil
   "Silesian University of Technology schedule integration."
   :group 'calendar
