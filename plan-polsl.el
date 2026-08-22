@@ -53,6 +53,13 @@ When set, filters out laboratory and seminar classes belonging to other sections
   :type 'file
   :group 'plan-polsl)
 
+(defcustom plan-polsl-semester-start nil
+  "Start date of the academic semester in \"YYYY-MM-DD\" format.
+When nil, automatically determines the next semester start (e.g. early October for winter semester)."
+  :type '(choice (const :tag "Auto (October / March)" nil)
+                 (string :tag "Custom Date (YYYY-MM-DD)"))
+  :group 'plan-polsl)
+
 (defcustom plan-polsl-auto-add-to-agenda t
   "Whether to automatically add `plan-polsl-target-file' to `org-agenda-files'."
   :type 'boolean

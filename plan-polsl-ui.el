@@ -18,8 +18,8 @@
 
 ;;;###autoload
 (defun plan-polsl-sync (&optional group-id section)
-  "Fetch and synchronize exact academic semester calendar for GROUP-ID and SECTION.
-Uses the PolSL semester calendar (.ics) with exact dates.
+  "Fetch and synchronize schedule for GROUP-ID and SECTION into Org-mode.
+Timestamps are anchored to the official semester start date (e.g. October for winter semester).
 If GROUP-ID is not set, prompts interactively.
 If SECTION is not configured in `plan-polsl-section', prompts once with discovered sections."
   (interactive)
@@ -28,13 +28,13 @@ If SECTION is not configured in `plan-polsl-section', prompts once with discover
                            (read-string "Podaj ID grupy PolSL (np. 343266256): ")))
          (_ (when (string-blank-p target-group)
               (user-error "Nie podano identyfikatora grupy")))
-         (raw-ics (progn
-                    (message "Pobieranie kalendarza semestru (grupa: %s)..." target-group)
-                    (plan-polsl-ics-fetch-schedule target-group)))
-         (all-events (plan-polsl-ics-parse raw-ics))
-         (_ (when (null all-events)
-              (user-error "Nie znaleziono żadnych zajęć dla grupy %s w pliku kalendarza" target-group)))
-         (available-secs (plan-polsl-filter-collect-available-sections all-events))
+         (raw-html (progn
+                     (message "Pobieranie planu (grupa: %s)..." target-group)
+                     (plan-polsl-http-fetch-schedule target-group)))
+         (all-entries (plan-polsl-parser-parse-entries raw-html))
+         (_ (when (null all-entries)
+              (user-error "Nie znaleziono żadnych zajęć dla grupy %s na plan.polsl.pl" target-group)))
+         (available-secs (plan-polsl-filter-collect-available-sections all-entries))
          (target-sec (or section
                          plan-polsl-section
                          (if available-secs
@@ -45,17 +45,17 @@ If SECTION is not configured in `plan-polsl-section', prompts once with discover
                                             nil nil nil nil "Wszystkie")))
                                (if (string-equal choice "Wszystkie") nil choice))
                            nil)))
-         (filtered-events (plan-polsl-filter-entries all-events target-sec))
+         (filtered-entries (plan-polsl-filter-entries all-entries target-sec))
          ;; generate and save Org file
          (target-file (or plan-polsl-target-file
                           (expand-file-name "plan-polsl.org" user-emacs-directory)))
-         (org-doc (plan-polsl-ics-generate-org-document filtered-events target-group target-sec)))
+         (org-doc (plan-polsl-org-generate-document filtered-entries target-group target-sec)))
     
     (plan-polsl-org-write-to-file org-doc target-file)
-    (message "Zsynchronizowano plan! Zapisano %d zjazdów/zajęć w semestrze w %s"
-             (length filtered-events)
+    (message "Zsynchronizowano plan! Zapisano %d zajęć w %s (start: semestr zimowy)"
+             (length filtered-entries)
              (abbreviate-file-name target-file))
-    (length filtered-events)))
+    (length filtered-entries)))
 
 ;;;###autoload
 (defun plan-polsl-set-group ()
