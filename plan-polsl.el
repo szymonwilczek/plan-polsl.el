@@ -11,8 +11,8 @@
 ;; of Technology (Politechnika Śląska).
 ;;
 ;; Fetches class schedules from https://plan.polsl.pl/, parses the coordinate-based
-;; timetable grid, filters classes by lab sections, and generates clean,
-;; recurring ;; Org-mode schedules integrated with Org-Agenda and Emacs Calendar.
+;; timetable grid, and generates clean, recurring Org-mode schedules integrated
+;; with Org-Agenda and Emacs Calendar.
 
 ;;; Code:
 
@@ -37,14 +37,6 @@
   "Default group identifier (e.g. \"343266256\")."
   :type '(choice (const :tag "Not Set" nil)
                  (string :tag "Group ID"))
-  :group 'plan-polsl)
-
-(defcustom plan-polsl-section nil
-  "User lab section number (e.g. \"10\" or '(\"10\" \"11\")).
-When set, filters out laboratory and seminar classes belonging to other sections."
-  :type '(choice (const :tag "All Sections" nil)
-                 (string :tag "Single Section (e.g. \"10\")")
-                 (repeat :tag "Multiple Sections" string))
   :group 'plan-polsl)
 
 (defcustom plan-polsl-target-file
@@ -78,7 +70,6 @@ When nil, automatically determines the next semester start (e.g. early October f
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
 (require 'plan-polsl-ics)
-(require 'plan-polsl-filter)
 (require 'plan-polsl-org)
 (require 'plan-polsl-ui)
 

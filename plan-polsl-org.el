@@ -92,8 +92,8 @@ Otherwise, auto-computes the appropriate semester start (October for winter, Mar
          (sec-str (if sections (concat " (sek. " (mapconcat #'identity sections ", ") ")") ""))
          (teachers-str (if teachers (mapconcat #'identity teachers ", ") "Brak danych"))
          (rooms-str (if rooms (mapconcat #'identity rooms ", ") "Brak danych")))
-    (format "** %s - %s%s :%s:uczelnia:\n   %s\n   :PROPERTIES:\n   :TYP: %s\n   :SALA: %s\n   :PROWADZACY: %s\n%s   :CYKL: %s\n   :END:\n\n"
-            title type sec-str tag
+    (format "** %s%s - %s :%s:uczelnia:\n   %s\n   :PROPERTIES:\n   :TYP: %s\n   :SALA: %s\n   :PROWADZACY: %s\n%s   :CYKL: %s\n   :END:\n\n"
+            title sec-str type tag
             timestamp
             type
             rooms-str
@@ -101,12 +101,11 @@ Otherwise, auto-computes the appropriate semester start (October for winter, Mar
             (if sections (format "   :SEKCJA: %s\n" (mapconcat #'identity sections ", ")) "")
             (if biweekly "Co 2 tygodnie (*)" "Co tydzień"))))
 
-(defun plan-polsl-org-generate-document (entries &optional group-id section)
-  "Generate complete Org-mode document string for ENTRIES, GROUP-ID and SECTION."
-  (let* ((sec-info (if section (format " (Sekcja: %s)" section) " (Wszystkie sekcje)"))
-         (grp-info (if group-id (format "Grupa: %s" group-id) "Plan Zajęć"))
-         (out (format "#+title: Plan Zajęć Politechniki Śląskiej - %s%s\n#+author: plan-polsl.el\n#+category: PolSL\n#+startup: overview\n#+filetags: :polsl:uczelnia:\n\n"
-                      grp-info sec-info))
+(defun plan-polsl-org-generate-document (entries &optional group-id)
+  "Generate complete Org-mode document string for ENTRIES and GROUP-ID."
+  (let* ((grp-info (if group-id (format "Grupa: %s" group-id) "Plan Zajęć"))
+         (out (format "#+title: Plan Zajęć Politechniki Śląskiej - %s\n#+author: plan-polsl.el\n#+category: PolSL\n#+startup: overview\n#+filetags: :polsl:uczelnia:\n\n"
+                      grp-info))
 
          ;; group entries by day of week
          (by-day (make-vector 5 nil)))

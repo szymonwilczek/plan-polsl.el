@@ -9,7 +9,7 @@
 
 *plan-polsl.el* to pakiet dla GNU Emacsa integrujący system planów zajęć *Politechniki Śląskiej* ([[https://plan.polsl.pl/][plan.polsl.pl]]) z *Org-mode* oraz *Org-Agenda*.
 
-Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej i sal, opcjonalnie filtruje zajęcia pod sekcję laboratoryjną oraz generuje czysty kalendarz w Org-mode.
+Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej, sal i sekcji laboratoryjnych, oraz generuje czysty kalendarz w Org-mode.
 
 * Możliwości
 
