@@ -17,7 +17,7 @@
   :group 'plan-polsl)
 
 (defface plan-polsl-day-face
-  '((t :inherit font-lock-keyword-face :weight bold :height 1.15))
+  '((t :inherit font-lock-keyword-face :weight bold :height 1.1))
   "Face for day of the week headings."
   :group 'plan-polsl-faces)
 
@@ -54,8 +54,14 @@
 (defvar plan-polsl-cached-entries nil
   "In-memory cache of parsed timetable entries.")
 
-(defvar plan-polsl-cached-group nil
-  "Group ID corresponding to `plan-polsl-cached-entries'.")
+(defvar plan-polsl-cached-meta nil
+  "In-memory cache of schedule metadata.")
+
+(defvar plan-polsl-cached-id nil
+  "Identifier corresponding to `plan-polsl-cached-entries'.")
+
+(defvar plan-polsl-cached-type nil
+  "Type corresponding to `plan-polsl-cached-entries'.")
 
 (defvar plan-polsl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -65,6 +71,13 @@
     (define-key map (kbd "s") #'plan-polsl-sync)
     map)
   "Keymap for `plan-polsl-mode'.")
+
+(with-eval-after-load 'evil
+  (evil-define-key '(normal visual motion) plan-polsl-mode-map
+    "q" #'quit-window
+    "g" #'plan-polsl-refresh
+    "r" #'plan-polsl-refresh
+    "s" #'plan-polsl-sync))
 
 (define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
   "Major mode for browsing PolSL university timetable in a dedicated buffer."
@@ -81,96 +94,159 @@
                 (t 'font-lock-type-face))))
     (propertize (format "[%-12s]" (or type-str "Zajęcia")) 'face face)))
 
-(defun plan-polsl-view--render-buffer (entries group-id)
-  "Render ENTRIES for GROUP-ID into `*Plan PolSL*' buffer."
-  (let ((buf (get-buffer-create "*Plan PolSL*")))
-    (with-current-buffer buf
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (plan-polsl-mode)
+(defun plan-polsl-view--format-entry-line (entry)
+  "Return (DISPLAY-LINE . PLAIN-TEXT-LINE) for ENTRY."
+  (let* ((start (plist-get entry :start-time))
+         (end (plist-get entry :end-time))
+         (title (plist-get entry :title))
+         (type (plist-get entry :type))
+         (sections (plist-get entry :sections))
+         (groups (plist-get entry :groups))
+         (rooms (plist-get entry :rooms))
+         (teachers (plist-get entry :teachers))
+         (biweekly (plist-get entry :biweekly))
+         (time-str (propertize (format "%s - %s" start end) 'face 'plan-polsl-time-face))
+         (badge (plan-polsl-view--type-badge type))
+         (title-str (propertize (format "%s%s" (if biweekly "* " "") title)
+                                'face 'plan-polsl-title-face))
+         (sec-str (if sections
+                      (propertize (format " (sek. %s)" (mapconcat #'identity sections ", "))
+                                  'face 'font-lock-warning-face)
+                    ""))
+         (meta-items nil))
+    (when groups
+      (push (format "Grupy: %s" (mapconcat #'identity groups ", ")) meta-items))
+    (when rooms
+      (push (format "Sala: %s" (mapconcat #'identity rooms ", ")) meta-items))
+    (when teachers
+      (push (format "Prow: %s" (mapconcat #'identity teachers ", ")) meta-items))
+    (let* ((meta-plain (if meta-items (concat " | " (mapconcat #'identity (nreverse meta-items) " - ")) ""))
+           (meta-display (if meta-items
+                             (propertize (concat " │ " (mapconcat #'identity (nreverse meta-items) " • "))
+                                         'face 'plan-polsl-meta-face)
+                           ""))
+           (plain (format "  %s - %s [%-12s] %s%s%s"
+                          start end (or type "Zajęcia") (if biweekly "* " "") title
+                          (if sections (format " (sek. %s)" (mapconcat #'identity sections ", ")) "")
+                          meta-plain))
+           (display (format "  %-13s %s %-20s%s%s\n"
+                            time-str badge (concat title-str sec-str) "" meta-display)))
+      (cons display plain))))
 
-        ;; header banner
-        (insert (propertize (format "Plan Zajęć Politechniki Śląskiej - Grupa: %s\n" group-id)
-                            'face '(:weight bold :height 1.2)))
-        (insert (propertize "   [q] Zamknij  |  [g/r] Odśwież z sieci  |  [s] Zsynchronizuj z Org-Agenda\n"
-                            'face 'font-lock-comment-face))
-        (insert (propertize (make-string 85 ?─) 'face 'font-lock-comment-face) "\n\n")
+(defun plan-polsl-view--render-buffer (entries meta id type-val)
+  "Render ENTRIES and META for ID and TYPE-VAL into `*Plan PolSL*' buffer."
+  (let ((buf (get-buffer-create "*Plan PolSL*"))
+        (title (or (plist-get meta :title) (format "ID: %s" id)))
+        (path (plist-get meta :path))
 
-        ;; group entries by day
-        (let ((by-day (make-vector 5 nil)))
-          (dolist (e entries)
-            (let ((idx (1- (plist-get e :day-index))))
-              (when (and (>= idx 0) (< idx 5))
-                (aset by-day idx (append (aref by-day idx) (list e))))))
+        ;; collect all day lines and find max width
+        (day-groups (make-vector 5 nil))
+        (all-plain-lines nil))
+
+    ;; group entries by day
+    (dolist (e entries)
+      (let ((idx (1- (plist-get e :day-index))))
+        (when (and (>= idx 0) (< idx 5))
+          (aset day-groups idx (append (aref day-groups idx) (list e))))))
+
+    ;; format lines to measure max line width
+    (dotimes (i 5)
+      (let ((day-entries (aref day-groups i)))
+        (dolist (e day-entries)
+          (let ((formatted (plan-polsl-view--format-entry-line e)))
+            (push (cdr formatted) all-plain-lines)))))
+    (let* ((header-line (format "Plan Zajęć: %s" title))
+           (max-w (max 75 (length header-line)
+                       (if all-plain-lines
+                           (apply #'max (mapcar #'length all-plain-lines))
+                         75)))
+           (sep-line (make-string max-w ?─)))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (plan-polsl-mode)
+
+          ;; header banner
+          (when path
+            (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
+          (insert (propertize (format "Plan Zajęć: %s\n" title)
+                              'face '(:weight bold :height 1.15)))
+          (insert (propertize "  [q] Zamknij   [g/r] Odśwież   [s] Synchronizuj z Org-Agenda\n"
+                              'face 'font-lock-comment-face))
+          (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
+
+          ;; days
           (dotimes (i 5)
-            (let ((day-entries (aref by-day i))
+            (let ((day-entries (aref day-groups i))
                   (day-name (aref ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"] i)))
               (insert (propertize (format "%s\n" day-name) 'face 'plan-polsl-day-face))
-              (insert (propertize (make-string 85 ?┄) 'face 'font-lock-comment-face) "\n")
+              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
               (if day-entries
                   (dolist (e day-entries)
-                    (let* ((start (plist-get e :start-time))
-                           (end (plist-get e :end-time))
-                           (title (plist-get e :title))
-                           (type (plist-get e :type))
-                           (sections (plist-get e :sections))
-                           (rooms (plist-get e :rooms))
-                           (teachers (plist-get e :teachers))
-                           (biweekly (plist-get e :biweekly))
-                           (time-str (propertize (format "%s - %s" start end) 'face 'plan-polsl-time-face))
-                           (badge (plan-polsl-view--type-badge type))
-                           (title-str (propertize (format "%s%s" (if biweekly "* " "") title)
-                                                  'face 'plan-polsl-title-face))
-                           (sec-str (if sections
-                                        (propertize (format " (sek. %s)" (mapconcat #'identity sections ", "))
-                                                    'face 'font-lock-warning-face)
-                                      ""))
-                           (meta-items nil))
-                      (when rooms
-                        (push (format "Sala: %s" (mapconcat #'identity rooms ", ")) meta-items))
-                      (when teachers
-                        (push (format "Prow: %s" (mapconcat #'identity teachers ", ")) meta-items))
-                      (let ((meta-str (if meta-items
-                                          (propertize (concat " │ " (mapconcat #'identity (nreverse meta-items) " • "))
-                                                      'face 'plan-polsl-meta-face)
-                                        "")))
-                        (insert (format "  %-13s %s %-20s%s%s\n"
-                                        time-str badge (concat title-str sec-str) "" meta-str)))))
+                    (let ((formatted (plan-polsl-view--format-entry-line e)))
+                      (insert (car formatted))))
                 (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
-              (insert "\n")))))
-      (goto-char (point-min)))
-    (pop-to-buffer buf)))
+              (insert "\n"))))
+        (goto-char (point-min)))
+      buf)))
+
+(defun plan-polsl-view--display-window (buf)
+  "Display BUF in a window with 65% width if split."
+  (let ((win (display-buffer buf '(display-buffer-use-some-window
+                                   display-buffer-pop-up-window
+                                   display-buffer-same-window))))
+    (when win
+      (select-window win)
+
+      ;; resize window
+      (when (and (> (frame-width) 100) (not (one-window-p)))
+        (let* ((target-width (floor (* (frame-width) 0.65)))
+               (delta (- target-width (window-width win))))
+          (ignore-errors (window-resize win delta t)))))))
 
 ;;;###autoload
-(defun plan-polsl (&optional group-id refresh)
-  "Display the timetable in in-memory `*Plan PolSL*' buffer.
-GROUP-ID defaults to `plan-polsl-group-id'.
+(defun plan-polsl (&optional id type refresh)
+  "Display the PolSL timetable in a dedicated in-memory `*Plan PolSL*' buffer.
+ID defaults to `plan-polsl-id' or `plan-polsl-group-id'.
+TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
 If REFRESH is non-nil, forces re-fetching from network."
   (interactive "P")
-  (let ((target-group (or group-id
-                          (bound-and-true-p plan-polsl-group-id)
-                          (read-string "Podaj ID grupy PolSL (np. 343266256): "))))
-    (when (string-blank-p target-group)
-      (user-error "Nie podano identyfikatora grupy"))
+  (let* ((target-id (or id
+                        (bound-and-true-p plan-polsl-id)
+                        (bound-and-true-p plan-polsl-group-id)
+                        (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
+         (target-type (or type (bound-and-true-p plan-polsl-type) 0)))
+    (when (string-blank-p target-id)
+      (user-error "Nie podano identyfikatora planu"))
     (if (and (not refresh)
              plan-polsl-cached-entries
-             (string-equal plan-polsl-cached-group target-group))
-        (plan-polsl-view--render-buffer plan-polsl-cached-entries target-group)
-      (message "Pobieranie planu dla grupy %s z plan.polsl.pl..." target-group)
-      (let* ((html (plan-polsl-http-fetch-schedule target-group))
+             (string-equal (format "%s" plan-polsl-cached-id) (format "%s" target-id))
+             (equal plan-polsl-cached-type target-type))
+        (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
+                                                   plan-polsl-cached-meta
+                                                   target-id target-type)))
+          (plan-polsl-view--display-window buf))
+      (message "Pobieranie planu z plan.polsl.pl (ID: %s)..." target-id)
+      (let* ((html (plan-polsl-http-fetch-schedule target-id target-type))
+             (meta (plan-polsl-parser-extract-metadata html))
              (entries (plan-polsl-parser-parse-entries html)))
         (unless entries
-          (user-error "Nie znaleziono żadnych zajęć dla grupy %s" target-group))
+          (user-error "Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id))
         (setq plan-polsl-cached-entries entries
-              plan-polsl-cached-group target-group)
-        (plan-polsl-view--render-buffer entries target-group)
-        (message "Wyświetlono plan PolSL (%d zajęć)" (length entries))))))
+              plan-polsl-cached-meta meta
+              plan-polsl-cached-id target-id
+              plan-polsl-cached-type target-type)
+        (let ((buf (plan-polsl-view--render-buffer entries meta target-id target-type)))
+          (plan-polsl-view--display-window buf)
+          (message "Wyświetlono plan PolSL (%d zajęć)" (length entries)))))))
 
 ;;;###autoload
 (defun plan-polsl-refresh ()
   "Force re-fetch timetable from network and update `*Plan PolSL*' buffer."
   (interactive)
-  (plan-polsl plan-polsl-cached-group t))
+  (plan-polsl (or plan-polsl-cached-id (bound-and-true-p plan-polsl-id) (bound-and-true-p plan-polsl-group-id))
+              (or plan-polsl-cached-type (bound-and-true-p plan-polsl-type) 0)
+              t))
 
 (provide 'plan-polsl-view)
 ;;; plan-polsl-view.el ends here

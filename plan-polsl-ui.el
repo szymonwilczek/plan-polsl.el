@@ -15,24 +15,27 @@
 (require 'plan-polsl-org)
 
 ;;;###autoload
-(defun plan-polsl-sync (&optional group-id)
-  "Fetch and synchronize timetable for GROUP-ID into Org-mode.
-GROUP-ID defaults to `plan-polsl-group-id'."
+(defun plan-polsl-sync (&optional id type)
+  "Fetch and synchronize timetable for ID and TYPE into Org-mode.
+ID defaults to `plan-polsl-id'.
+TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
   (interactive)
-  (let* ((target-group (or group-id
-                           (bound-and-true-p plan-polsl-group-id)
-                           (read-string "Podaj ID grupy PolSL (np. 343266256): ")))
-         (_ (when (string-blank-p target-group)
-              (user-error "Nie podano identyfikatora grupy")))
+  (let* ((target-id (or id
+                        (bound-and-true-p plan-polsl-id)
+                        (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
+         (target-type (or type (bound-and-true-p plan-polsl-type) 0))
+         (_ (when (string-blank-p target-id)
+              (user-error "Nie podano identyfikatora planu")))
          (raw-html (progn
-                     (message "Pobieranie planu (grupa: %s)..." target-group)
-                     (plan-polsl-http-fetch-schedule target-group)))
+                     (message "Pobieranie planu (ID: %s)..." target-id)
+                     (plan-polsl-http-fetch-schedule target-id target-type)))
+         (meta (plan-polsl-parser-extract-metadata raw-html))
          (all-entries (plan-polsl-parser-parse-entries raw-html))
          (_ (when (null all-entries)
-              (user-error "Nie znaleziono żadnych zajęć dla grupy %s na plan.polsl.pl" target-group)))
+              (user-error "Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id)))
          (target-file (or (bound-and-true-p plan-polsl-target-file)
                           (expand-file-name "plan-polsl.org" user-emacs-directory)))
-         (org-doc (plan-polsl-org-generate-document all-entries target-group)))
+         (org-doc (plan-polsl-org-generate-document all-entries (or (plist-get meta :title) target-id))))
     
     (plan-polsl-org-write-to-file org-doc target-file)
     (message "Zsynchronizowano plan! Zapisano %d zajęć w %s"

@@ -10,9 +10,9 @@
 ;; Emacs package designed for students and faculty of the Silesian University
 ;; of Technology (Politechnika Śląska).
 ;;
-;; Fetches class schedules from https://plan.polsl.pl/, parses the coordinate-based
-;; timetable grid, and generates clean, recurring Org-mode schedules integrated
-;; with Org-Agenda and Emacs Calendar.
+;; Fetches class schedules from https://plan.polsl.pl/ for student groups,
+;; academic teachers, and rooms. Displays formatted timetables in a dedicated
+;; in-memory buffer and synchronizes recurring schedules with Org-Agenda.
 
 ;;; Code:
 
@@ -33,10 +33,17 @@
   :type 'string
   :group 'plan-polsl)
 
-(defcustom plan-polsl-group-id nil
-  "Default group identifier (e.g. \"343266256\")."
+(defcustom plan-polsl-id nil
+  "Default plan identifier (e.g. \"343266256\" for student group, or teacher/room ID)."
   :type '(choice (const :tag "Not Set" nil)
-                 (string :tag "Group ID"))
+                 (string :tag "Schedule ID"))
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-type 0
+  "Type of schedule endpoint (0 = student group, 10 = teacher/faculty, 20 = room/resource)."
+  :type '(choice (const :tag "Student Group (0)" 0)
+                 (const :tag "Teacher / Faculty (10)" 10)
+                 (const :tag "Room / Resource (20)" 20))
   :group 'plan-polsl)
 
 (defcustom plan-polsl-target-file
