@@ -1,0 +1,73 @@
+;;; plan-polsl.el --- Silesian University of Technology schedule integration -*- lexical-binding: t; -*-
+
+;; Author: Szymon Wilczek
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "28.1"))
+;; Keywords: calendar, convenience, polsl, schedule, org
+;; URL: https://github.com/szymonwilczek/plan-polsl.el
+
+;;; Commentary:
+;; Emacs package designed for students and faculty of the Silesian University
+;; of Technology (Politechnika Śląska).
+;;
+;; Fetches class schedules from https://plan.polsl.pl/, parses the coordinate-based
+;; timetable grid, filters classes by lab sections, and generates clean,
+;; recurring ;; Org-mode schedules integrated with Org-Agenda and Emacs Calendar.
+
+;;; Code:
+
+(require 'cl-lib)
+
+(defgroup plan-polsl nil
+  "Silesian University of Technology schedule integration."
+  :group 'calendar
+  :prefix "plan-polsl-")
+
+(defcustom plan-polsl-base-url "https://plan.polsl.pl/"
+  "Base URL of the PolSL schedule service."
+  :type 'string
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-group-id nil
+  "Default group identifier (e.g. \"343266256\")."
+  :type '(choice (const :tag "Not Set" nil)
+                 (string :tag "Group ID"))
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-section nil
+  "User lab section number (e.g. \"10\" or '(\"10\" \"11\")).
+When set, filters out laboratory and seminar classes belonging to other sections."
+  :type '(choice (const :tag "All Sections" nil)
+                 (string :tag "Single Section (e.g. \"10\")")
+                 (repeat :tag "Multiple Sections" string))
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-target-file
+  (expand-file-name "plan-polsl.org" user-emacs-directory)
+  "Path to the generated Org-mode schedule file."
+  :type 'file
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-auto-add-to-agenda t
+  "Whether to automatically add `plan-polsl-target-file' to `org-agenda-files'."
+  :type 'boolean
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-window-width 1920
+  "Virtual window width sent to plan.polsl.pl for layout rendering."
+  :type 'integer
+  :group 'plan-polsl)
+
+(defcustom plan-polsl-window-height 1080
+  "Virtual window height sent to plan.polsl.pl for layout rendering."
+  :type 'integer
+  :group 'plan-polsl)
+
+(require 'plan-polsl-http)
+(require 'plan-polsl-parser)
+(require 'plan-polsl-filter)
+(require 'plan-polsl-org)
+(require 'plan-polsl-ui)
+
+(provide 'plan-polsl)
+;;; plan-polsl.el ends here
