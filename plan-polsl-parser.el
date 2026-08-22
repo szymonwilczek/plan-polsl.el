@@ -79,6 +79,25 @@
      ((string-equal-ignore-case bg-color "#a9fd43") "Seminarium")
      (t "Zajęcia"))))
 
+(defun plan-polsl-parser-extract-metadata (html)
+  "Extract real schedule title (e.g. \"INF sem.7/5-6, semestr zimowy...\") and faculty path from HTML."
+  (let ((title nil)
+        (path nil))
+    (with-temp-buffer
+      (insert (or html ""))
+      (goto-char (point-min))
+
+      ;; look for "Plan zajęć - ..."
+      (when (re-search-forward "Plan zajęć[ \t\n]*-[ \t\n]*\\([^\r\n<]+\\)" nil t)
+        (setq title (string-trim (match-string 1))))
+
+      ;; look for "Grupy \ ..." or "Nauczyciele \ ..."
+      (goto-char (point-min))
+      (when (re-search-forward "\\(?:Grupy\\|Nauczyciele\\|Sale\\)[ \t\n]*\\\\[^\r\n<]+" nil t)
+        (setq path (string-trim (match-string 0)))))
+    (list :title (or title "Plan Zajęć")
+          :path path)))
+
 (defun plan-polsl-parser-parse-entries (html)
   "Parse HTML from plan.polsl.pl using DOM and return list of structured class entries."
   (let* ((dom (with-temp-buffer
@@ -100,6 +119,11 @@
                  (bg (if (string-match "background-color:[ \t\n]*\\(#[a-fA-F0-9]+\\)" style)
                          (match-string 1 style) "#ffffff"))
                  (links (dom-by-tag div 'a))
+                 (groups (delq nil (mapcar (lambda (a)
+                                             (let ((href (or (dom-attr a 'href) "")))
+                                               (when (or (string-match-p "type=0" href) (string-match-p "type=1\\b" href))
+                                                 (string-trim (dom-texts a)))))
+                                           links)))
                  (teachers (delq nil (mapcar (lambda (a)
                                                (let ((href (or (dom-attr a 'href) "")))
                                                  (when (string-match-p "type=10" href)
@@ -129,6 +153,7 @@
                         :type class-type
                         :sections sections
                         :biweekly (and biweekly t)
+                        :groups (delete-dups groups)
                         :teachers (delete-dups teachers)
                         :rooms (delete-dups rooms)
                         :raw-text trimmed
