@@ -70,6 +70,7 @@ When set, filters out laboratory and seminar classes belonging to other sections
 
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
+(require 'plan-polsl-ics)
 (require 'plan-polsl-filter)
 (require 'plan-polsl-org)
 (require 'plan-polsl-ui)
