@@ -26,32 +26,51 @@ TYPE defaults to 0 (groups). WIN-W and WIN-H default to configured geometry."
             h)))
 
 (defun plan-polsl-http-fetch (url)
-  "Fetch HTML content from URL synchronously, decoding Latin-2 / UTF-8 properly."
-  (let* ((url-request-method "GET")
-         (url-request-extra-headers
-          '(("User-Agent" . "Emacs plan-polsl.el/0.1.0 (GNU Emacs)")
-            ("Accept" . "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            ("Accept-Language" . "pl,en-US;q=0.7,en;q=0.3")))
-         (buffer (url-retrieve-synchronously url t t 15)))
-    (unless buffer
-      (error "plan-polsl: Failed to connect to %s" url))
-    (with-current-buffer buffer
-      (unwind-protect
-          (progn
-            ;; navigate past HTTP response headers
-            (goto-char (point-min))
-            (if (re-search-forward "\r?\n\r?\n" nil t)
-                (let* ((raw-bytes (buffer-substring-no-properties (point) (point-max)))
-                       ;; iso-8859-2 (Latin 2)
-                       (decoded (or (condition-case nil
-                                        (decode-coding-string raw-bytes 'iso-8859-2)
-                                      (error nil))
-                                    (condition-case nil
-                                        (decode-coding-string raw-bytes 'utf-8)
-                                      (error raw-bytes)))))
-                  decoded)
-              (error "plan-polsl: Malformed HTTP response from server")))
-        (kill-buffer buffer)))))
+  "Fetch HTML content from URL synchronously, decoding Latin-2 / UTF-8 properly.
+Uses `curl` if available to reliably negotiate legacy TLS on PolSL servers."
+  (if (executable-find "curl")
+      (with-temp-buffer
+        (set-buffer-multibyte nil)
+        (call-process "curl" nil t nil
+                      "-s" "-k" "--http1.1"
+                      "--ciphers" "DEFAULT@SECLEVEL=1"
+                      "-A" "Emacs plan-polsl.el/0.1.0 (GNU Emacs)"
+                      url)
+        (if (> (buffer-size) 200)
+            (let* ((raw-bytes (buffer-string))
+                   (decoded (or (condition-case nil
+                                    (decode-coding-string raw-bytes 'iso-8859-2)
+                                  (error nil))
+                                (condition-case nil
+                                    (decode-coding-string raw-bytes 'utf-8)
+                                  (error raw-bytes)))))
+              decoded)
+          (error "plan-polsl: Failed to fetch content from %s" url)))
+
+    ;; fallback to built-in url.el
+    (let* ((url-request-method "GET")
+           (url-request-extra-headers
+            '(("User-Agent" . "Emacs plan-polsl.el/0.1.0 (GNU Emacs)")
+              ("Accept" . "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+              ("Accept-Language" . "pl,en-US;q=0.7,en;q=0.3")))
+           (buffer (url-retrieve-synchronously url t t 15)))
+      (unless buffer
+        (error "plan-polsl: Failed to connect to %s" url))
+      (with-current-buffer buffer
+        (unwind-protect
+            (progn
+              (goto-char (point-min))
+              (if (re-search-forward "\r?\n\r?\n" nil t)
+                  (let* ((raw-bytes (buffer-substring-no-properties (point) (point-max)))
+                         (decoded (or (condition-case nil
+                                          (decode-coding-string raw-bytes 'iso-8859-2)
+                                        (error nil))
+                                      (condition-case nil
+                                          (decode-coding-string raw-bytes 'utf-8)
+                                        (error raw-bytes)))))
+                    decoded)
+                (error "plan-polsl: Malformed HTTP response from server")))
+          (kill-buffer buffer))))))
 
 (defun plan-polsl-http-fetch-schedule (group-id &optional type)
   "Fetch timetable HTML for GROUP-ID (TYPE defaults to 0 for student group)."
