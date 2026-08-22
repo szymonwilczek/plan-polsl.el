@@ -9,7 +9,7 @@
 
 *plan-polsl.el* to pakiet dla GNU Emacsa integrujący system planów zajęć *Politechniki Śląskiej* ([[https://plan.polsl.pl/][plan.polsl.pl]]) z *Org-mode* oraz *Org-Agenda*.
 
-Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej i sal, filtruje zajęcia pod *konkretną sekcję laboratoryjną* oraz generuje czysty, powtarzalny kalendarz w Org-mode.
+Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej i sal, opcjonalnie filtruje zajęcia pod sekcję laboratoryjną oraz generuje czysty kalendarz w Org-mode.
 
 * Możliwości
 
@@ -17,33 +17,29 @@ Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki go
 - *Filtrowanie sekcji laboratoryjnych*
 - *Znaczniki powtarzalności*
 - *Rejestracja w Org-Agenda*
-  
-* Instalacja i konfiguracja
 
-** Ręczna / load-path (use-package)
+* Konfiguracja (use-package)
+
+Wszystkie parametry konfiguruje się bezpośrednio w definicji pakietu w Emacsie:
 
 #+begin_src elisp
   (use-package plan-polsl
     :load-path "~/Dokumenty/GitHub/plan-polsl.el"
     :custom
     (plan-polsl-group-id "343266256")                              ;; ID grupy z plan.polsl.pl
-    (plan-polsl-section "10")                                      ;; Numer sekcji laboratoryjnej
+    (plan-polsl-section nil)                                       ;; nil = pełny plan, lub np. "10"
     (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org") ;; Ścieżka docelowa pliku Org
     (plan-polsl-auto-add-to-agenda t))                             ;; Dodaj do Org-Agenda
 #+end_src
 
 
-* Komendy interaktywne
-
-| Komenda                    | Opis                                                                                                                   |
-|----------------------------+------------------------------------------------------------------------------------------------------------------------|
-| ~M-x plan-polsl-sync~        | Pobiera i aktualizuje Twój plan zajęć do pliku Org-mode. Jeśli sekcja nie jest ustawiona, pyta o nią z podpowiedziami. |
-| ~M-x plan-polsl-set-group~   | Interaktywna zmiana i zapisanie domyślnego ID grupy.                                                                   |
-| ~M-x plan-polsl-set-section~ | Interaktywna zmiana numeru sekcji laboratoryjnej.                                                                      |
-| ~M-x plan-polsl-open-plan~   | Otwiera wygenerowany plik ~plan-polsl.org~.                                                                              |
-| ~M-x plan-polsl-view-agenda~ | Otwiera widok tygodniowy Org-Agenda z planem zajęć.                                                                    |
+| Komenda                  | Opis                                                |
+|--------------------------+-----------------------------------------------------|
+| ~M-x plan-polsl-sync~      | Pobiera i aktualizuje plan zajęć do pliku Org-mode. |
+| ~M-x plan-polsl-open-plan~ | Otwiera wygenerowany plik ~plan-polsl.org~.           |
 
 * Autor & Licencja
 
 - *Autor:* Szymon Wilczek
 - *Licencja:* [[file:LICENSE][GNU General Public License v3.0 (GPLv3)]]
+  
