@@ -94,8 +94,14 @@
                 (t 'font-lock-type-face))))
     (propertize (format "[%-12s]" (or type-str "Zajęcia")) 'face face)))
 
-(defun plan-polsl-view--format-entry-line (entry)
-  "Return (DISPLAY-LINE . PLAIN-TEXT-LINE) for ENTRY."
+(defun plan-polsl-view--pad-column (str width)
+  "Pad STR with spaces so that its visual `string-width' is exactly WIDTH."
+  (let* ((sw (string-width (or str "")))
+         (padding (make-string (max 0 (- width sw)) ?\s)))
+    (concat (or str "") padding)))
+
+(defun plan-polsl-view--format-entry-line (entry subject-col-width)
+  "Return propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH."
   (let* ((start (plist-get entry :start-time))
          (end (plist-get entry :end-time))
          (title (plist-get entry :title))
@@ -113,6 +119,8 @@
                       (propertize (format " (sek. %s)" (mapconcat #'identity sections ", "))
                                   'face 'font-lock-warning-face)
                     ""))
+         (subj-full (concat title-str sec-str))
+         (subj-padded (plan-polsl-view--pad-column subj-full subject-col-width))
          (meta-items nil))
     (when groups
       (push (format "Grupy: %s" (mapconcat #'identity groups ", ")) meta-items))
@@ -120,18 +128,11 @@
       (push (format "Sala: %s" (mapconcat #'identity rooms ", ")) meta-items))
     (when teachers
       (push (format "Prow: %s" (mapconcat #'identity teachers ", ")) meta-items))
-    (let* ((meta-plain (if meta-items (concat " | " (mapconcat #'identity (nreverse meta-items) " - ")) ""))
-           (meta-display (if meta-items
-                             (propertize (concat " │ " (mapconcat #'identity (nreverse meta-items) " • "))
-                                         'face 'plan-polsl-meta-face)
-                           ""))
-           (plain (format "  %s - %s [%-12s] %s%s%s"
-                          start end (or type "Zajęcia") (if biweekly "* " "") title
-                          (if sections (format " (sek. %s)" (mapconcat #'identity sections ", ")) "")
-                          meta-plain))
-           (display (format "  %-13s %s %-20s%s%s\n"
-                            time-str badge (concat title-str sec-str) "" meta-display)))
-      (cons display plain))))
+    (let ((meta-display (if meta-items
+                            (propertize (concat " │ " (mapconcat #'identity (nreverse meta-items) " • "))
+                                        'face 'plan-polsl-meta-face)
+                          "")))
+      (format "  %s  %s  %s%s" time-str badge subj-padded meta-display))))
 
 (defun plan-polsl-view--render-buffer (entries meta id type-val)
   "Render ENTRIES and META for ID and TYPE-VAL into `*Plan PolSL*' buffer."
@@ -139,56 +140,71 @@
         (title (or (plist-get meta :title) (format "ID: %s" id)))
         (path (plist-get meta :path))
 
-        ;; collect all day lines and find max width
-        (day-groups (make-vector 5 nil))
-        (all-plain-lines nil))
-
-    ;; group entries by day
+        ;; group entries by day
+        (day-groups (make-vector 5 nil)))
     (dolist (e entries)
       (let ((idx (1- (plist-get e :day-index))))
         (when (and (>= idx 0) (< idx 5))
           (aset day-groups idx (append (aref day-groups idx) (list e))))))
 
-    ;; format lines to measure max line width
-    (dotimes (i 5)
-      (let ((day-entries (aref day-groups i)))
-        (dolist (e day-entries)
-          (let ((formatted (plan-polsl-view--format-entry-line e)))
-            (push (cdr formatted) all-plain-lines)))))
-    (let* ((header-line (format "Plan Zajęć: %s" title))
-           (max-w (max 75 (length header-line)
-                       (if all-plain-lines
-                           (apply #'max (mapcar #'length all-plain-lines))
-                         75)))
-           (sep-line (make-string max-w ?─)))
-      (with-current-buffer buf
-        (let ((inhibit-read-only t))
-          (erase-buffer)
-          (plan-polsl-mode)
+    ;; compute maximum subject column width
+    (let ((max-subj-w 18))
+      (dolist (e entries)
+        (let* ((title (plist-get e :title))
+               (biweekly (plist-get e :biweekly))
+               (sections (plist-get e :sections))
+               (sec-str (if sections (format " (sek. %s)" (mapconcat #'identity sections ", ")) ""))
+               (s-len (string-width (format "%s%s%s" (if biweekly "* " "") title sec-str))))
+          (setq max-subj-w (max max-subj-w s-len))))
 
-          ;; header banner
-          (when path
-            (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
-          (insert (propertize (format "Plan Zajęć: %s\n" title)
-                              'face '(:weight bold :height 1.15)))
-          (insert (propertize "  [q] Zamknij   [g/r] Odśwież   [s] Synchronizuj z Org-Agenda\n"
-                              'face 'font-lock-comment-face))
-          (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
+      ;; format all entry lines and collect rendered day lines
+      (let ((rendered-days (make-vector 5 nil))
+            (all-rendered-lines nil)
+            (header-line-1 (if path (format "%s" path) ""))
+            (header-line-2 (format "Plan Zajęć: %s" title))
+            (header-line-3 "  [q] Zamknij   [g/r] Odśwież   [s] Synchronizuj z Org-Agenda"))
+        (when path (push header-line-1 all-rendered-lines))
+        (push header-line-2 all-rendered-lines)
+        (push header-line-3 all-rendered-lines)
+        (dotimes (i 5)
+          (let ((day-entries (aref day-groups i))
+                (day-lines nil))
+            (dolist (e day-entries)
+              (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w)))
+                (push line-str day-lines)
+                (push (substring-no-properties line-str) all-rendered-lines)))
+            (aset rendered-days i (nreverse day-lines))))
 
-          ;; days
-          (dotimes (i 5)
-            (let ((day-entries (aref day-groups i))
-                  (day-name (aref ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"] i)))
-              (insert (propertize (format "%s\n" day-name) 'face 'plan-polsl-day-face))
-              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
-              (if day-entries
-                  (dolist (e day-entries)
-                    (let ((formatted (plan-polsl-view--format-entry-line e)))
-                      (insert (car formatted))))
-                (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
-              (insert "\n"))))
-        (goto-char (point-min)))
-      buf)))
+        ;; compute exact maximum line width in the entire buffer
+        (let* ((max-w (max 75 (apply #'max (mapcar #'string-width all-rendered-lines))))
+               (sep-line (make-string max-w ?─)))
+          (with-current-buffer buf
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (plan-polsl-mode)
+
+              ;; header banner
+              (when path
+                (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
+              (insert (propertize (format "%s\n" header-line-2)
+                                  'face '(:weight bold :height 1.15)))
+              (insert (propertize (format "%s\n" header-line-3)
+                                  'face 'font-lock-comment-face))
+              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
+
+              ;; days
+              (dotimes (i 5)
+                (let ((day-lines (aref rendered-days i))
+                      (day-name (aref ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"] i)))
+                  (insert (propertize (format "%s\n" day-name) 'face 'plan-polsl-day-face))
+                  (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
+                  (if day-lines
+                      (dolist (l day-lines)
+                        (insert l "\n"))
+                    (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
+                  (insert "\n"))))
+            (goto-char (point-min)))
+          buf)))))
 
 (defun plan-polsl-view--display-window (buf)
   "Display BUF in a window with 65% width if split."
@@ -207,13 +223,12 @@
 ;;;###autoload
 (defun plan-polsl (&optional id type refresh)
   "Display the PolSL timetable in a dedicated in-memory `*Plan PolSL*' buffer.
-ID defaults to `plan-polsl-id' or `plan-polsl-group-id'.
+ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
 If REFRESH is non-nil, forces re-fetching from network."
   (interactive "P")
   (let* ((target-id (or id
                         (bound-and-true-p plan-polsl-id)
-                        (bound-and-true-p plan-polsl-group-id)
                         (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
          (target-type (or type (bound-and-true-p plan-polsl-type) 0)))
     (when (string-blank-p target-id)
@@ -244,7 +259,7 @@ If REFRESH is non-nil, forces re-fetching from network."
 (defun plan-polsl-refresh ()
   "Force re-fetch timetable from network and update `*Plan PolSL*' buffer."
   (interactive)
-  (plan-polsl (or plan-polsl-cached-id (bound-and-true-p plan-polsl-id) (bound-and-true-p plan-polsl-group-id))
+  (plan-polsl (or plan-polsl-cached-id (bound-and-true-p plan-polsl-id))
               (or plan-polsl-cached-type (bound-and-true-p plan-polsl-type) 0)
               t))
 

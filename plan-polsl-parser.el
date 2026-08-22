@@ -91,10 +91,11 @@
       (when (re-search-forward "Plan zajęć[ \t\n]*-[ \t\n]*\\([^\r\n<]+\\)" nil t)
         (setq title (string-trim (match-string 1))))
 
-      ;; look for "Grupy \ ..." or "Nauczyciele \ ..."
+      ;; look for "Grupy \ ..." or "Nauczyciele \ ..." or "Sale \ ..."
+      ;; and extract path starting directly with faculty name
       (goto-char (point-min))
-      (when (re-search-forward "\\(?:Grupy\\|Nauczyciele\\|Sale\\)[ \t\n]*\\\\[^\r\n<]+" nil t)
-        (setq path (string-trim (match-string 0)))))
+      (when (re-search-forward "\\(?:Grupy\\|Nauczyciele\\|Sale\\)[ \t\n]*\\\\[ \t\n]*\\([^\r\n<]+\\)" nil t)
+        (setq path (string-trim (match-string 1)))))
     (list :title (or title "Plan Zajęć")
           :path path)))
 
