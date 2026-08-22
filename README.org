@@ -7,9 +7,9 @@
 [[https://www.gnu.org/software/emacs/][https://img.shields.io/badge/Emacs-28.1+-blueviolet.svg?style=flat-square&logo=gnu-emacs&logoColor=white]]
 [[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square]]
 
-*plan-polsl.el* to pakiet dla GNU Emacsa integrujący system planów zajęć *Politechniki Śląskiej* ([[https://plan.polsl.pl/][plan.polsl.pl]]) z *Org-mode* oraz *Org-Agenda*.
+*plan-polsl.el* to pakiet dla GNU Emacsa integrujący system planów zajęć *Politechniki Śląskiej* ([[https://plan.polsl.pl/][plan.polsl.pl]]) z *Org-mode*, *Org-Agenda* oraz dedykowanym podglądem w buforze pamięci.
 
-Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej, sal i sekcji laboratoryjnych, oraz generuje czysty kalendarz w Org-mode.
+Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej, sal i sekcji laboratoryjnych, wyświetla go w dedykowanym buforze oraz synchronizuje z kalendarzem Org-Agenda.
 
 * Możliwości
 
@@ -27,16 +27,16 @@ Wszystkie parametry konfiguruje się bezpośrednio w definicji pakietu w Emacsie
     :load-path "~/Dokumenty/GitHub/plan-polsl.el"
     :custom
     (plan-polsl-group-id "343266256")                              ;; ID grupy z plan.polsl.pl
-    (plan-polsl-section nil)                                       ;; nil = pełny plan, lub np. "10"
     (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org") ;; Ścieżka docelowa pliku Org
     (plan-polsl-auto-add-to-agenda t))                             ;; Dodaj do Org-Agenda
 #+end_src
 
 
-| Komenda                  | Opis                                                |
-|--------------------------+-----------------------------------------------------|
-| ~M-x plan-polsl-sync~      | Pobiera i aktualizuje plan zajęć do pliku Org-mode. |
-| ~M-x plan-polsl-open-plan~ | Otwiera wygenerowany plik ~plan-polsl.org~.           |
+| Komenda                  | Opis                                                                                    |
+|--------------------------+-----------------------------------------------------------------------------------------|
+| ~M-x plan-polsl~           | Otwiera dedykowany bufor ~*Plan PolSL*~ z czytelnym podglądem całego planu w pamięci RAM. |
+| ~M-x plan-polsl-sync~      | Pobiera i aktualizuje Twój plan zajęć do pliku Org-mode dla Org-Agenda.                 |
+| ~M-x plan-polsl-open-plan~ | Otwiera wygenerowany plik ~plan-polsl.org~.                                               |
 
 * Autor & Licencja
 
