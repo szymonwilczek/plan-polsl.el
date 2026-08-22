@@ -60,8 +60,8 @@
           (format "%02d:%02d" end-h end-m))))
 
 (defun plan-polsl-parser-extract-sections (text)
-  "Extract lab/group section numbers from TEXT (e.g. \"sek.10,11\" -> '(\"10\" \"11\"))."
-  (if (string-match "(sek\\.[ \t\n]*\\([0-9, ]+\\))" (or text ""))
+  "Extract lab/group section numbers from TEXT (e.g. \"sek.10,11\" or \"sek4\" -> '(\"10\" \"11\"))."
+  (if (string-match "(sek\\.?\\s*\\([0-9, ]+\\))" (or text ""))
       (split-string (match-string 1 text) "[, ]+" t)
     nil))
 
@@ -118,9 +118,9 @@
                  (biweekly (string-match-p "\\*\\s*[A-Za-z]" trimmed))
                  (title (let ((t-clean trimmed))
                           (setq t-clean (replace-regexp-in-string "^\\*\\s*" "" t-clean))
-                          (setq t-clean (replace-regexp-in-string "(sek\\.[^)]+)" "" t-clean))
+                          (setq t-clean (replace-regexp-in-string "(sek\\.?[^)]+)" "" t-clean))
                           (setq t-clean (replace-regexp-in-string ",\\s*\\(lab\\|wyk\\|sem\\|ćw\\|proj\\).*" "" t-clean))
-                          (or (car (split-string t-clean "[,\n]" t)) t-clean))))
+                          (string-trim (or (car (split-string t-clean "[,\n]" t)) t-clean)))))
             (push (list :day-index day-idx
                         :day-name day-name
                         :start-time (car time-pair)
