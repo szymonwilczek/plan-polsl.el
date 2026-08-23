@@ -81,6 +81,10 @@
     (define-key map (kbd "t") #'plan-polsl-current-week)
     (define-key map (kbd "<") #'plan-polsl-prev-week)
     (define-key map (kbd ">") #'plan-polsl-next-week)
+    (define-key map (kbd "TAB") #'plan-polsl-next-entry)
+    (define-key map (kbd "<tab>") #'plan-polsl-next-entry)
+    (define-key map (kbd "<backtab>") #'plan-polsl-prev-entry)
+    (define-key map (kbd "S-TAB") #'plan-polsl-prev-entry)
     (define-key map (kbd "RET") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<return>") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<mouse-2>") #'plan-polsl-view-show-detail)
@@ -95,6 +99,10 @@
     "t" #'plan-polsl-current-week
     "<" #'plan-polsl-prev-week
     ">" #'plan-polsl-next-week
+    (kbd "TAB") #'plan-polsl-next-entry
+    (kbd "<tab>") #'plan-polsl-next-entry
+    (kbd "<backtab>") #'plan-polsl-prev-entry
+    (kbd "S-TAB") #'plan-polsl-prev-entry
     (kbd "RET") #'plan-polsl-view-show-detail
     (kbd "<return>") #'plan-polsl-view-show-detail))
 
@@ -374,6 +382,32 @@
   (if-let ((entry (get-text-property (point) 'plan-polsl-entry)))
       (plan-polsl-view--display-detail-popup entry)
     (user-error "Kursor nie znajduje się na linii zajęć")))
+
+;;;###autoload
+(defun plan-polsl-next-entry ()
+  "Jump forward to the next scheduled class entry in the buffer."
+  (interactive)
+  (let ((pos (next-single-property-change (point) 'plan-polsl-entry)))
+    (while (and pos (not (get-text-property pos 'plan-polsl-entry)))
+      (setq pos (next-single-property-change pos 'plan-polsl-entry)))
+    (if pos
+        (goto-char pos)
+      (user-error "Koniec listy zajęć"))))
+
+;;;###autoload
+(defun plan-polsl-prev-entry ()
+  "Jump backward to the previous scheduled class entry in the buffer."
+  (interactive)
+  (let ((pos (previous-single-property-change (point) 'plan-polsl-entry)))
+    (while (and pos (not (get-text-property pos 'plan-polsl-entry)))
+      (setq pos (previous-single-property-change pos 'plan-polsl-entry)))
+    (if pos
+        (progn
+          (while (and (> pos (point-min))
+                      (get-text-property (1- pos) 'plan-polsl-entry))
+            (setq pos (1- pos)))
+          (goto-char pos))
+      (user-error "Początek listy zajęć"))))
 
 (defun plan-polsl-view--buffer-name (id _type-val meta)
   "Generate appropriate buffer name for ID, _TYPE-VAL, and META."
