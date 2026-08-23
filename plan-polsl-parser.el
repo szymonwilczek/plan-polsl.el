@@ -115,10 +115,24 @@
                           (string-to-number (match-string 1 style)) 0))
                  (left (if (string-match "left:[ \t\n]*\\([0-9]+\\)px" style)
                            (string-to-number (match-string 1 style)) 0))
+                 (width (if (string-match "width:[ \t\n]*\\([0-9]+\\)px" style)
+                            (string-to-number (match-string 1 style)) 338))
                  (height (if (string-match "height:[ \t\n]*\\([0-9]+\\)px" style)
                              (string-to-number (match-string 1 style)) 0))
                  (bg (if (string-match "background-color:[ \t\n]*\\(#[a-fA-F0-9]+\\)" style)
                          (match-string 1 style) "#ffffff"))
+                 (day-col-offset (mod (- left 88) 350))
+                 (cycle (cond
+                         ((> width 200) 'weekly)
+                         ((< day-col-offset 120) 'odd)
+                         (t 'even)))
+                 (dates (when (string-match "występowanie:[ \t\n]*\\([0-9., \t\n]+\\)" trimmed)
+                          (let ((raw-dates (match-string 1 trimmed)))
+                            (delq nil (mapcar (lambda (d)
+                                                (let ((cl (string-trim d)))
+                                                  (when (string-match-p "^[0-9]+\\.[0-9]+" cl)
+                                                    cl)))
+                                              (split-string raw-dates "[, \t\n]+" t))))))
                  (links (dom-by-tag div 'a))
                  (groups (delq nil (mapcar (lambda (a)
                                              (let ((href (or (dom-attr a 'href) "")))
@@ -140,7 +154,7 @@
                  (day-name (aref plan-polsl-parser-day-names (1- day-idx)))
                  (sections (plan-polsl-parser-extract-sections trimmed))
                  (class-type (plan-polsl-parser-extract-type trimmed bg))
-                 (biweekly (string-match-p "\\*\\s*[A-Za-z]" trimmed))
+                 (biweekly (or (eq cycle 'odd) (eq cycle 'even) (string-match-p "\\*\\s*[A-Za-z]" trimmed)))
                  (title (let ((t-clean trimmed))
                           (setq t-clean (replace-regexp-in-string "^\\*\\s*" "" t-clean))
                           (setq t-clean (replace-regexp-in-string "(sek\\.?[^)]+)" "" t-clean))
@@ -154,12 +168,15 @@
                         :type class-type
                         :sections sections
                         :biweekly (and biweekly t)
+                        :cycle cycle
+                        :dates dates
                         :groups (delete-dups groups)
                         :teachers (delete-dups teachers)
                         :rooms (delete-dups rooms)
                         :raw-text trimmed
                         :top top
                         :left left
+                        :width width
                         :height height)
                   entries)))))
 

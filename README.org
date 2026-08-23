@@ -13,10 +13,19 @@ Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki go
 
 * Możliwości
 
-- *Integracja z plan.polsl.pl*
-- *Filtrowanie sekcji laboratoryjnych*
-- *Znaczniki powtarzalności*
-- *Rejestracja w Org-Agenda*
+- *Dedykowany podgląd w pamięci (~M-x plan-polsl~):* Natychmiastowe przeglądanie sformatowanego planu w buforze ~*Plan PolSL*~ o szerokości 65% z klawiszami:
+  - ~q~ : Zamknij bufor
+  - ~r~ : Odśwież plan z serwera
+  - ~s~ : Synchronizuj z Org-Agenda
+  - ~<~ / ~>~ : Nawigacja między tygodniami (poprzedni / następny tydzień)
+- *Domyślny widok bieżącego tygodnia:* Automatyczne dopasowanie do bieżącego tygodnia akademickiego (tydzień parzysty/nieparzysty) z dokładnymi datami kalendarzowymi.
+- *Błyskawiczne wyszukiwanie (~M-x plan-polsl-search~):*
+  - *Nauczyciele:* Natychmiastowe wyszukiwanie po nazwisku z podpowiedziami spośród wszystkich pracowników uczelni.
+  - *Grupy i sale:* Nawigacja po strukturze drzewiastej (Wydział -> Kierunek -> Semestr -> Grupa).
+- *Wsparcie dla grup studenckich, nauczycieli i sal:* Obsługa endpointów grup (~type=0~), nauczycieli (~type=10~) oraz sal (~type=20~).
+- *Bezpośrednia integracja z plan.polsl.pl:* Pobiera i parsuje układ planu w locie przy użyciu wbudowanego silnika ~libxml/dom~.
+- *Inteligentne znaczniki powtarzalności:* Zakotwicza terminy w dacie startu semestru akademickiego, dzięki czemu w wakacje Org-Agenda jest całkowicie czysta.
+- *Automatyczna rejestracja w Org-Agenda:* Wygenerowany plik jest automatycznie dodawany do ~org-agenda-files~.
 
 * Konfiguracja (use-package)
 
