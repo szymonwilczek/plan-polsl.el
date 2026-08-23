@@ -1,10 +1,11 @@
 *.elc
+*-autoloads.el
+*.cache
 
 *~
 .#*
 \#*\#
 
-plan-polsl-autoloads.el
 /dist/
 /.cask/
 /.elpa/
