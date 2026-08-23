@@ -43,9 +43,10 @@ Returns list of (NAME . ID) pairs."
             "branch(\\([0-9]+\\),\\([0-9]+\\),\\([0-9]+\\),'\\([^']+\\)')"
             html pos)
       (let ((id (match-string 2 html))
-            (name (match-string 4 html)))
-        (push (cons name id) entries))
-      (setq pos (match-end 0)))
+            (name (match-string 4 html))
+            (match-end-pos (match-end 0)))
+        (push (cons name id) entries)
+        (setq pos match-end-pos)))
     (nreverse entries)))
 
 (defun plan-polsl-search--parse-feed (html)
@@ -62,17 +63,14 @@ leaves that point to actual individual plans (type=0/10/20)."
         (leaves nil)
         (branch-ids (make-hash-table :test 'equal))
         (pos 0))
-
     ;; extract branches from get_left_tree_branch('ID', ...)
-    ;; name comes from the text after the closing > of the img tag
     (while (string-match
             "get_left_tree_branch([ \t\n]*'\\([0-9]+\\)'"
             html pos)
       (let* ((bid (match-string 1 html))
-             (after-pos (match-end 0))
-
+             (match-end-pos (match-end 0))
              ;; find the name
-             (chunk (substring html after-pos (min (length html) (+ after-pos 500))))
+             (chunk (substring html match-end-pos (min (length html) (+ match-end-pos 500))))
              (name (cond
                     ;; name in <a href="plan.php...">NAME</a>
                     ((string-match ">\\([^<]+\\)</a>" chunk)
@@ -83,8 +81,8 @@ leaves that point to actual individual plans (type=0/10/20)."
                      (string-trim (match-string 1 chunk)))
                     (t (format "ID:%s" bid)))))
         (push (list :branch bid name) branches)
-        (puthash bid t branch-ids))
-      (setq pos (match-end 0)))
+        (puthash bid t branch-ids)
+        (setq pos match-end-pos)))
 
     ;; extract leaf plan.php links
     (setq pos 0)
@@ -93,16 +91,11 @@ leaves that point to actual individual plans (type=0/10/20)."
             html pos)
       (let ((ltype (match-string 1 html))
             (lid (match-string 2 html))
-            (lname (string-trim (match-string 3 html))))
-        (push (list :leaf ltype lid lname) leaves))
-      (setq pos (match-end 0)))
-
+            (lname (string-trim (match-string 3 html)))
+            (match-end-pos (match-end 0)))
+        (push (list :leaf ltype lid lname) leaves)
+        (setq pos match-end-pos)))
     ;; Determine what to return:
-    ;; - if branch ID also appears as leaf, it means the node is both
-    ;;   expandable AND directly viewable -> keep it as branch
-    ;; - leaves with type=0/10/20 that are NOT also branches are final selections
-    ;; - leaves with type=2/12 are "aggregate" links (whole semester/katedra)
-    ;;   - skip them if same ID is already a branch
     (let ((result nil))
 
       ;; first add branches (always expandable)
@@ -165,7 +158,10 @@ The selected schedule is displayed in the *Plan PolSL* buffer."
 
     ;; fetch root nodes and walk down the tree
     (message "Pobieranie listy wydziałów...")
-    (let ((nodes (plan-polsl-search--fetch-root-nodes menu-type)))
+    (redisplay)
+    (let ((nodes (condition-case err
+                     (plan-polsl-search--fetch-root-nodes menu-type)
+                   (error (user-error "Błąd połączenia z plan.polsl.pl: %s" (error-message-string err))))))
       (unless nodes
         (user-error "Nie znaleziono wydziałów na plan.polsl.pl"))
       (catch 'plan-polsl-search--done
@@ -173,7 +169,7 @@ The selected schedule is displayed in the *Plan PolSL* buffer."
           (let* ((choices (mapcar (lambda (n)
                                     (cons (plan-polsl-search--format-choice n) n))
                                   nodes))
-                 (prompt (format "%s > " (mapconcat #'identity breadcrumb " > ")))
+                 (prompt (format "%s > " (mapconcat #'identity (reverse breadcrumb) " > ")))
                  (selected-name (completing-read prompt
                                                  (mapcar #'car choices)
                                                  nil t))
@@ -190,6 +186,7 @@ The selected schedule is displayed in the *Plan PolSL* buffer."
                                                  plan-polsl-search--leaf-type-alist))
                                      0)))
                  (message "Otwieranie planu: %s..." leaf-name)
+                 (redisplay)
                  (plan-polsl leaf-id plan-type t)
                  (throw 'plan-polsl-search--done t)))
               (:branch
@@ -198,7 +195,10 @@ The selected schedule is displayed in the *Plan PolSL* buffer."
                      (branch-name (nth 2 selected)))
                  (push branch-name breadcrumb)
                  (message "Pobieranie: %s..." branch-name)
-                 (let ((children (plan-polsl-search--fetch-children menu-type branch-id)))
+                 (redisplay)
+                 (let ((children (condition-case err
+                                     (plan-polsl-search--fetch-children menu-type branch-id)
+                                   (error (user-error "Błąd pobierania: %s" (error-message-string err))))))
                    (if children
                        (setq nodes children)
                      (user-error "Brak elementów w: %s" branch-name))))))))))))

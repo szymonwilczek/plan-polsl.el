@@ -5,11 +5,17 @@
 
 ;;; Commentary:
 ;; HTTP retrieval and charset decoding module for plan.polsl.pl schedules.
+;; Uses curl with Connection: close and legacy TLS support for fast responses.
 
 ;;; Code:
 
 (require 'url)
 (require 'url-http)
+
+(defcustom plan-polsl-http-timeout 15
+  "Maximum seconds to wait for a single HTTP request to plan.polsl.pl."
+  :type 'integer
+  :group 'plan-polsl)
 
 (defun plan-polsl-http-build-url (group-id &optional type win-w win-h)
   "Build full plan.polsl.pl request URL for GROUP-ID and TYPE.
@@ -27,30 +33,35 @@ TYPE defaults to 0 (groups). WIN-W and WIN-H default to configured geometry."
 
 (defun plan-polsl-http-fetch (url)
   "Fetch HTML content from URL synchronously, decoding Latin-2 / UTF-8 properly.
-Uses `curl` if available to reliably negotiate legacy TLS on PolSL servers."
+Uses `curl` with Connection: close to negotiate legacy TLS and avoid keep-alive delays."
   (if (executable-find "curl")
       (with-temp-buffer
         (set-buffer-multibyte nil)
-        (call-process "curl" nil t nil
-                      "-s" "-k" "--http1.1"
-                      "--ciphers" "DEFAULT@SECLEVEL=1"
-                      "-A" "Emacs plan-polsl.el/0.1.0 (GNU Emacs)"
-                      url)
-        (if (> (buffer-size) 200)
-            (let* ((raw-bytes (buffer-string))
-                   (decoded (or (condition-case nil
-                                    (decode-coding-string raw-bytes 'iso-8859-2)
-                                  (error nil))
-                                (condition-case nil
-                                    (decode-coding-string raw-bytes 'utf-8)
-                                  (error raw-bytes)))))
-              decoded)
-          (error "plan-polsl: Failed to fetch content from %s" url)))
+        (let ((timeout (or (bound-and-true-p plan-polsl-http-timeout) 15)))
+          (call-process "curl" nil t nil
+                        "-s" "-k" "--http1.1"
+                        "-H" "Connection: close"
+                        "--connect-timeout" (number-to-string (min timeout 5))
+                        "--max-time" (number-to-string timeout)
+                        "--ciphers" "DEFAULT@SECLEVEL=1"
+                        "-A" "Emacs plan-polsl.el/0.1.0 (GNU Emacs)"
+                        url)
+          (if (> (buffer-size) 10)
+              (let* ((raw-bytes (buffer-string))
+                     (decoded (or (condition-case nil
+                                      (decode-coding-string raw-bytes 'iso-8859-2)
+                                    (error nil))
+                                  (condition-case nil
+                                      (decode-coding-string raw-bytes 'utf-8)
+                                    (error raw-bytes)))))
+                decoded)
+            (error "plan-polsl: Failed to fetch content from %s" url))))
 
     ;; fallback to built-in url.el
     (let* ((url-request-method "GET")
            (url-request-extra-headers
             '(("User-Agent" . "Emacs plan-polsl.el/0.1.0 (GNU Emacs)")
+              ("Connection" . "close")
               ("Accept" . "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
               ("Accept-Language" . "pl,en-US;q=0.7,en;q=0.3")))
            (buffer (url-retrieve-synchronously url t t 15)))
