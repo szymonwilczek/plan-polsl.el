@@ -76,7 +76,6 @@ When nil, automatically determines the next semester start (e.g. early October f
 
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
-(require 'plan-polsl-ics)
 (require 'plan-polsl-view)
 (require 'plan-polsl-search)
 (require 'plan-polsl-org)
