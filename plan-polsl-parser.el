@@ -147,6 +147,17 @@ If DEFAULT is a number, returns integer; otherwise returns string."
                                 :initials initials))))
                     (dom-by-tag div 'a))))
 
+(defun plan-polsl-parser--extract-rooms-info (div)
+  "Extract structured list of (:id ID :name NAME) for rooms in DIV."
+  (delq nil (mapcar (lambda (a)
+                      (let ((href (or (dom-attr a 'href) ""))
+                            (rname (string-trim (dom-texts a))))
+                        (when (and (string-match "type=20&id=\\([0-9]+\\)" href)
+                                   (> (length rname) 0))
+                          (list :id (match-string 1 href)
+                                :name rname))))
+                    (dom-by-tag div 'a))))
+
 (defun plan-polsl-parser--extract-legend (html)
   "Extract legend mapping abbreviation to full course name from HTML."
   (let ((legend nil)
@@ -218,6 +229,7 @@ Returns list of structured class entries."
                  (teachers (delete-dups (plan-polsl-parser--extract-links div "type=10")))
                  (teachers-info (plan-polsl-parser--extract-teachers-info div))
                  (rooms (delete-dups (plan-polsl-parser--extract-links div "type=20")))
+                 (rooms-info (plan-polsl-parser--extract-rooms-info div))
                  (time-pair (plan-polsl-parser--coords-to-time top height))
                  (day-idx (plan-polsl-parser--coords-to-day left))
                  (day-name (aref plan-polsl-parser-day-names (1- day-idx)))
@@ -241,6 +253,7 @@ Returns list of structured class entries."
                         :teachers teachers
                         :teachers-info teachers-info
                         :rooms rooms
+                        :rooms-info rooms-info
                         :raw-text trimmed
                         :top top
                         :left left

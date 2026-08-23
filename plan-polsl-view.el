@@ -106,17 +106,17 @@
 (defvar plan-polsl-detail-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'plan-polsl-detail-quit)
-    (define-key map (kbd "RET") #'plan-polsl-detail-open-teacher)
-    (define-key map (kbd "<return>") #'plan-polsl-detail-open-teacher)
-    (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-teacher)
+    (define-key map (kbd "RET") #'plan-polsl-detail-open-target)
+    (define-key map (kbd "<return>") #'plan-polsl-detail-open-target)
+    (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-target)
     map)
   "Keymap for `plan-polsl-detail-mode'.")
 
 (with-eval-after-load 'evil
   (evil-define-key '(normal visual motion) plan-polsl-detail-mode-map
     "q" #'plan-polsl-detail-quit
-    (kbd "RET") #'plan-polsl-detail-open-teacher
-    (kbd "<return>") #'plan-polsl-detail-open-teacher))
+    (kbd "RET") #'plan-polsl-detail-open-target
+    (kbd "<return>") #'plan-polsl-detail-open-target))
 
 (define-derived-mode plan-polsl-detail-mode special-mode "Plan-PolSL:Szczegóły"
   "Major mode for inspecting class details in a vertical split window."
@@ -131,15 +131,24 @@
         (bury-buffer)
       (delete-window win))))
 
-(defun plan-polsl-detail-open-teacher ()
-  "Open schedule of the teacher selected at point in a separate new buffer."
+(defun plan-polsl-detail-open-target ()
+  "Open schedule of teacher or room selected at point in a separate buffer."
   (interactive)
-  (if-let ((tid (get-text-property (point) 'plan-polsl-teacher-id)))
-      (let ((tname (or (get-text-property (point) 'plan-polsl-teacher-name) tid)))
-        (plan-polsl-detail-quit)
-        (message "Otwieranie planu prowadzącego: %s..." tname)
-        (plan-polsl tid 10 t))
-    (message "Przesuń kursor na wiersz z prowadzącym i naciśnij [Enter].")))
+  (cond
+   ((get-text-property (point) 'plan-polsl-teacher-id)
+    (let* ((tid (get-text-property (point) 'plan-polsl-teacher-id))
+           (tname (or (get-text-property (point) 'plan-polsl-teacher-name) tid)))
+      (plan-polsl-detail-quit)
+      (message "Otwieranie planu prowadzącego: %s..." tname)
+      (plan-polsl tid 10 t)))
+   ((get-text-property (point) 'plan-polsl-room-id)
+    (let* ((rid (get-text-property (point) 'plan-polsl-room-id))
+           (rname (or (get-text-property (point) 'plan-polsl-room-name) rid)))
+      (plan-polsl-detail-quit)
+      (message "Otwieranie planu sali: %s..." rname)
+      (plan-polsl rid 20 t)))
+   (t
+    (message "Przesuń kursor na wiersz z prowadzącym lub salą i naciśnij [Enter]."))))
 
 (defun plan-polsl-view--get-monday (time-val)
   "Return time value for Monday of the week containing TIME-VAL."
@@ -260,10 +269,11 @@
          (cycle (plist-get entry :cycle))
          (dates (plist-get entry :dates))
          (rooms (plist-get entry :rooms))
+         (rooms-info (plist-get entry :rooms-info))
          (sections (plist-get entry :sections))
          (groups (plist-get entry :groups))
          (teachers-info (plist-get entry :teachers-info))
-         (first-teacher-pos nil))
+         (first-target-pos nil))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)
@@ -289,10 +299,6 @@
                          ((eq cycle 'odd) "Tydzień Nieparzysty (*)")
                          ((eq cycle 'even) "Tydzień Parzysty (*)")
                          (t "Zajęcia cykliczne"))))
-        (when rooms
-          (insert (format "  %-12s %s\n"
-                          (propertize "Sala:" 'face 'font-lock-comment-face)
-                          (propertize (mapconcat #'identity rooms ", ") 'face 'bold))))
         (when sections
           (insert (format "  %-12s %s\n"
                           (propertize "Sekcje:" 'face 'font-lock-comment-face)
@@ -315,19 +321,41 @@
                        (full-name (plan-polsl-view--teacher-name tid initials))
                        (line-str (format "  -> %s (%s)\n" full-name initials))
                        (beg (point)))
-                  (unless first-teacher-pos
-                    (setq first-teacher-pos beg))
+                  (unless first-target-pos
+                    (setq first-target-pos beg))
                   (insert (propertize line-str 'face 'font-lock-function-name-face))
                   (put-text-property beg (point) 'plan-polsl-teacher-id tid)
                   (put-text-property beg (point) 'plan-polsl-teacher-name full-name)
                   (put-text-property beg (point) 'mouse-face 'highlight))))
           (insert (propertize "  (Brak informacji o prowadzącym)\n" 'face 'font-lock-comment-face)))
 
+        ;; rooms section
+        (insert "\n")
+        (if rooms-info
+            (progn
+              (insert (propertize "Sale (Enter = otwórz plan sali):\n"
+                                  'face '(:weight bold :underline t)))
+              (dolist (rinfo rooms-info)
+                (let* ((rid (plist-get rinfo :id))
+                       (rname (plist-get rinfo :name))
+                       (line-str (format "  %s\n" rname))
+                       (beg (point)))
+                  (unless first-target-pos
+                    (setq first-target-pos beg))
+                  (insert (propertize line-str 'face 'font-lock-type-face))
+                  (put-text-property beg (point) 'plan-polsl-room-id rid)
+                  (put-text-property beg (point) 'plan-polsl-room-name rname)
+                  (put-text-property beg (point) 'mouse-face 'highlight))))
+          (when rooms
+            (insert (format "  %-12s %s\n"
+                            (propertize "Sala:" 'face 'font-lock-comment-face)
+                            (propertize (mapconcat #'identity rooms ", ") 'face 'bold)))))
+
         ;; footer
         (insert "\n" (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n")
-        (insert (propertize "  [q] Zamknij okno\n  [Enter] Otwórz plan wybranego prowadzącego\n"
+        (insert (propertize "  [q] Zamknij okno\n  [Enter] Otwórz plan wybranego elementu\n"
                             'face 'font-lock-comment-face))
-        (goto-char (or first-teacher-pos (point-min)))))
+        (goto-char (or first-target-pos (point-min)))))
 
     ;; display vertical split window on the right side
     (let ((win (display-buffer buf
