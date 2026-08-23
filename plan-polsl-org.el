@@ -1,4 +1,4 @@
-;;; plan-polsl-org.el --- Org-mode schedule generator and agenda integration -*- lexical-binding: t; -*-
+;;; plan-polsl-org.el --- Org-mode schedule generator and agenda integration -*- lexical-binding: t; coding: utf-8; -*-
 
 ;; Author: Szymon Wilczek
 ;; Keywords: calendar, polsl, org
@@ -14,28 +14,15 @@
 
 (defconst plan-polsl-org-day-abbrevs
   ["pon" "wto" "śro" "czw" "pią"]
-  "Short day of week names used in Org timestamps.")
-
-(defun plan-polsl-org--get-base-monday ()
-  "Compute date components (YEAR MONTH DAY) for Monday of semester start.
-If `plan-polsl-semester-start' is set, uses that date.
-Otherwise, auto-computes the appropriate semester start (October for winter, March for summer)."
-  (if-let ((custom (bound-and-true-p plan-polsl-semester-start)))
-      (if (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)" custom)
-          (list (string-to-number (match-string 1 custom))
-                (string-to-number (match-string 2 custom))
-                (string-to-number (match-string 3 custom)))
-        (plan-polsl-org--auto-semester-monday))
-    (plan-polsl-org--auto-semester-monday)))
+  "Short day of week names used in Org active timestamps.")
 
 (defun plan-polsl-org--auto-semester-monday ()
-  "Determine the Monday of the semester based on current calendar month."
+  "Determine the starting Monday of the semester based on current date."
   (let* ((now (decode-time))
          (cur-year (nth 5 now))
          (cur-month (nth 4 now))
-         ;; if currently between March (3) and September (9): winter semester begins in October
-         ;; if currently between October (10) and February (2): winter semester began in October of cur-year
-         ;; (or prev year for Jan/Feb)
+         ;; winter semester begins in October
+         ;; Jan/Feb belongs to previous year's winter semester
          (target-year (if (<= cur-month 2) (1- cur-year) cur-year))
          (target-month 10)
 
@@ -49,6 +36,18 @@ Otherwise, auto-computes the appropriate semester start (October for winter, Mar
          (first-mon-time (time-add oct-1-time (days-to-time days-to-first-mon)))
          (dec (decode-time first-mon-time)))
     (list (nth 5 dec) (nth 4 dec) (nth 3 dec))))
+
+(defun plan-polsl-org--get-base-monday ()
+  "Compute date components (YEAR MONTH DAY) for Monday of semester start.
+If `plan-polsl-semester-start' is set, uses that date.
+Otherwise, auto-computes the appropriate semester start date."
+  (if-let ((custom (bound-and-true-p plan-polsl-semester-start)))
+      (if (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)" custom)
+          (list (string-to-number (match-string 1 custom))
+                (string-to-number (match-string 2 custom))
+                (string-to-number (match-string 3 custom)))
+        (plan-polsl-org--auto-semester-monday))
+    (plan-polsl-org--auto-semester-monday)))
 
 (defun plan-polsl-org--format-timestamp (day-index start-time end-time &optional biweekly)
   "Format an active recurring Org timestamp for DAY-INDEX (1-5), START-TIME, END-TIME."
@@ -101,37 +100,29 @@ Otherwise, auto-computes the appropriate semester start (October for winter, Mar
             (if sections (format "   :SEKCJA: %s\n" (mapconcat #'identity sections ", ")) "")
             (if biweekly "Co 2 tygodnie (*)" "Co tydzień"))))
 
-(defun plan-polsl-org-generate-document (entries &optional group-id)
-  "Generate complete Org-mode document string for ENTRIES and GROUP-ID."
-  (let* ((grp-info (if group-id (format "Grupa: %s" group-id) "Plan Zajęć"))
-         (out (format "#+title: Plan Zajęć Politechniki Śląskiej - %s\n#+author: plan-polsl.el\n#+category: PolSL\n#+startup: overview\n#+filetags: :polsl:uczelnia:\n\n"
-                      grp-info))
-
-         ;; group entries by day of week
+(defun plan-polsl-org-generate-document (entries &optional title-info)
+  "Generate complete Org-mode document string for ENTRIES and TITLE-INFO."
+  (let* ((header (format "#+title: Plan Zajęć Politechniki Śląskiej - %s\n#+author: plan-polsl.el\n#+category: PolSL\n#+startup: overview\n#+filetags: :polsl:uczelnia:\n\n"
+                         (or title-info "Plan Zajęć")))
          (by-day (make-vector 5 nil)))
+
+    ;; group entries by day of week
     (dolist (e entries)
       (let ((idx (1- (plist-get e :day-index))))
         (when (and (>= idx 0) (< idx 5))
           (aset by-day idx (append (aref by-day idx) (list e))))))
-    (dotimes (i 5)
-      (let ((day-entries (aref by-day i))
-            (day-name (aref ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"] i)))
-        (setq out (concat out (format "* %s\n\n" day-name)))
-        (if day-entries
-            (dolist (e day-entries)
-              (setq out (concat out (plan-polsl-org-format-entry e))))
-          (setq out (concat out "  Brak zaplanowanych zajęć.\n\n")))))
-    out))
 
-(defun plan-polsl-org-write-to-file (content target-file)
-  "Write Org CONTENT to TARGET-FILE, ensuring parent directory exists."
-  (let ((dir (file-name-directory (expand-file-name target-file))))
-    (unless (file-directory-p dir)
-      (make-directory dir t)))
-  (with-temp-file target-file
-    (insert content))
-  (when (bound-and-true-p plan-polsl-auto-add-to-agenda)
-    (plan-polsl-org-register-in-agenda target-file)))
+    ;; build document
+    (let ((out header))
+      (dotimes (i 5)
+        (let ((day-entries (aref by-day i))
+              (day-name (aref ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"] i)))
+          (setq out (concat out (format "* %s\n\n" day-name)))
+          (if day-entries
+              (dolist (e day-entries)
+                (setq out (concat out (plan-polsl-org-format-entry e))))
+            (setq out (concat out "  Brak zaplanowanych zajęć.\n\n")))))
+      out)))
 
 (defun plan-polsl-org-register-in-agenda (file)
   "Add FILE to `org-agenda-files' if not already registered."
@@ -143,6 +134,16 @@ Otherwise, auto-computes the appropriate semester start (October for winter, Mar
           (unless (member expanded files)
             (setq org-agenda-files (append files (list expanded)))))
       (setq org-agenda-files (list expanded)))))
+
+(defun plan-polsl-org-write-to-file (content target-file)
+  "Write Org CONTENT to TARGET-FILE, creating parent directories if needed."
+  (let ((dir (file-name-directory (expand-file-name target-file))))
+    (unless (file-directory-p dir)
+      (make-directory dir t)))
+  (with-temp-file target-file
+    (insert content))
+  (when (bound-and-true-p plan-polsl-auto-add-to-agenda)
+    (plan-polsl-org-register-in-agenda target-file)))
 
 (provide 'plan-polsl-org)
 ;;; plan-polsl-org.el ends here
