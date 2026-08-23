@@ -143,7 +143,8 @@ Returns list of (:branch ID NAME) and (:leaf TYPE ID NAME) items."
         (let ((alist nil))
           (maphash (lambda (name id) (push (cons name id) alist)) teachers-dict)
           (setq plan-polsl-search--teachers-cache
-                (sort alist (lambda (a b) (string< (car a) (car b))))))
+                (sort alist (lambda (a b) (string< (car a) (car b)))))
+          (setq plan-polsl-search--id-to-teacher-cache nil))
 
         ;; persist to disk cache
         (ignore-errors
@@ -154,6 +155,19 @@ Returns list of (:branch ID NAME) and (:leaf TYPE ID NAME) items."
             (insert ";; Plan-PolSL teachers cache\n")
             (prin1 plan-polsl-search--teachers-cache (current-buffer))))
         plan-polsl-search--teachers-cache))))
+
+(defvar plan-polsl-search--id-to-teacher-cache nil
+  "In-memory hash table mapping teacher numeric ID strings to full names.")
+
+(defun plan-polsl-search--get-teacher-by-id (tid)
+  "Return full teacher name for numeric TID in O(1) time."
+  (unless plan-polsl-search--id-to-teacher-cache
+    (let ((tbl (make-hash-table :test 'equal))
+          (teachers (plan-polsl-search--get-teachers nil)))
+      (dolist (pair teachers)
+        (puthash (format "%s" (cdr pair)) (car pair) tbl))
+      (setq plan-polsl-search--id-to-teacher-cache tbl)))
+  (gethash (format "%s" tid) plan-polsl-search--id-to-teacher-cache))
 
 (defun plan-polsl-search--get-teachers (&optional force-refresh)
   "Return teacher alist from memory, disk cache, or live network fetch."

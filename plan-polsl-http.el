@@ -6,8 +6,8 @@
 ;;; Commentary:
 ;; HTTP client for plan.polsl.pl endpoints.
 ;; Handles legacy TLS parameters, HTTP keep-alive timeouts via Connection:
-;; close, parallel fetching (curl -Z), and Latin-2 (ISO-8859-2) / UTF-8 charset
-;; decoding.
+;; close, non-blocking asynchronous requests (`make-process`), parallel batch
+;; crawling (`curl -Z`), and Latin-2 (ISO-8859-2) / UTF-8 charset decoding.
 
 ;;; Code:
 
@@ -20,7 +20,7 @@
   :group 'plan-polsl)
 
 (defconst plan-polsl-http--curl-common-args
-  '("-s" "-k" "--http1.1"
+  '("-s" "-k" "--http1.1" "--compressed"
     "-H" "Connection: close"
     "--ciphers" "DEFAULT@SECLEVEL=1"
     "-A" "Emacs plan-polsl.el (GNU Emacs)")
@@ -85,6 +85,45 @@ Uses `curl` with legacy TLS negotiation and Connection: close for optimal speed.
                   (error "plan-polsl: Malformed HTTP response from server")))
             (kill-buffer buf)))))))
 
+(defun plan-polsl-http-fetch-async (url callback &optional error-callback timeout)
+  "Fetch HTML content from URL asynchronously without blocking Emacs UI.
+Runs CALLBACK with the decoded HTML string upon success, or ERROR-CALLBACK upon error."
+  (if (not (executable-find "curl"))
+      ;; fallback to synchronous fetch in separate callback
+      (condition-case err
+          (funcall callback (plan-polsl-http-fetch url timeout))
+        (error (if error-callback
+                   (funcall error-callback (error-message-string err))
+                 (message "plan-polsl error: %s" (error-message-string err)))))
+    (let* ((to (or timeout (bound-and-true-p plan-polsl-http-timeout) 15))
+           (out-buf (generate-new-buffer " *plan-polsl-async*"))
+           (args (append (list "curl")
+                         plan-polsl-http--curl-common-args
+                         (list "--connect-timeout" (number-to-string (min to 5))
+                               "--max-time" (number-to-string to)
+                               url))))
+      (make-process
+       :name "plan-polsl-http-async"
+       :buffer out-buf
+       :command args
+       :noquery t
+       :sentinel
+       (lambda (proc _event)
+         (when (memq (process-status proc) '(exit signal))
+           (let* ((pbuf (process-buffer proc))
+                  (exit-code (process-exit-status proc)))
+             (unwind-protect
+                 (if (and (buffer-live-p pbuf) (> (buffer-size pbuf) 100))
+                     (let* ((raw (with-current-buffer pbuf (buffer-string)))
+                            (html (plan-polsl-http--decode-response raw)))
+                       (funcall callback html))
+                   (let ((err-msg (format "Błąd pobierania danych z serwera (kod %d)" exit-code)))
+                     (if error-callback
+                         (funcall error-callback err-msg)
+                       (message "plan-polsl: %s" err-msg))))
+               (when (buffer-live-p pbuf)
+                 (kill-buffer pbuf))))))))))
+
 (defun plan-polsl-http-fetch-parallel (urls &optional max-jobs timeout)
   "Fetch multiple URLS in parallel using curl -Z.
 Returns the concatenated decoded response string."
@@ -102,10 +141,14 @@ Returns the concatenated decoded response string."
                      urls))
       (plan-polsl-http--decode-response (buffer-string)))))
 
-(defun plan-polsl-http-fetch-schedule (id &optional type)
-  "Fetch timetable HTML for ID and optional TYPE (defaults to 0 for student group)."
-  (let ((url (plan-polsl-http-build-url id type)))
-    (plan-polsl-http-fetch url)))
+(defun plan-polsl-http-fetch-schedule (id &optional type timeout)
+  "Fetch HTML timetable for schedule ID and TYPE synchronously."
+  (plan-polsl-http-fetch (plan-polsl-http-build-url id type) timeout))
+
+(defun plan-polsl-http-fetch-schedule-async (id type callback &optional error-callback timeout)
+  "Fetch HTML timetable for schedule ID and TYPE asynchronously without UI freeze."
+  (plan-polsl-http-fetch-async (plan-polsl-http-build-url id type)
+                               callback error-callback timeout))
 
 (provide 'plan-polsl-http)
 ;;; plan-polsl-http.el ends here

@@ -17,6 +17,7 @@
 (declare-function evil-define-key "evil-core")
 (declare-function plan-polsl-sync "plan-polsl-ui")
 (declare-function plan-polsl-search--get-teachers "plan-polsl-search")
+(declare-function plan-polsl-search--get-teacher-by-id "plan-polsl-search")
 
 (defgroup plan-polsl-faces nil
   "Faces for `plan-polsl-mode'."
@@ -56,6 +57,9 @@
   '((t :inherit font-lock-comment-face))
   "Face for room, teacher, and section metadata."
   :group 'plan-polsl-faces)
+
+(defvar plan-polsl-view--schedule-cache (make-hash-table :test 'equal)
+  "Session cache mapping (ID-STRING . TYPE) to (:meta META :entries ENTRIES).")
 
 (defvar-local plan-polsl-view-id nil
   "Buffer-local schedule identifier.")
@@ -242,12 +246,9 @@
       (format "  %s  %s  %s%s" time-str badge subj-padded meta-display))))
 
 (defun plan-polsl-view--teacher-name (tid initials)
-  "Lookup full teacher name for TID with fallback to INITIALS."
-  (let* ((teachers (ignore-errors (plan-polsl-search--get-teachers nil)))
-         (match (cl-find-if (lambda (pair)
-                              (string-equal (format "%s" (cdr pair)) (format "%s" tid)))
-                            teachers)))
-    (if match (car match) initials)))
+  "Lookup full teacher name for TID in O(1) time with fallback to INITIALS."
+  (or (ignore-errors (plan-polsl-search--get-teacher-by-id tid))
+      initials))
 
 (defun plan-polsl-view--display-detail-popup (entry)
   "Display vertical split window on the right with detailed information for ENTRY."
@@ -484,27 +485,33 @@ MONDAY specifies the active week's Monday (defaults to current week)."
          (target-type (or type (bound-and-true-p plan-polsl-type) 0))
          (active-mon (or monday
                          plan-polsl-view-active-monday
-                         (plan-polsl-view--get-monday (current-time)))))
+                         (plan-polsl-view--get-monday (current-time))))
+         (cache-key (cons (format "%s" target-id) target-type))
+         (cached-data (unless refresh (gethash cache-key plan-polsl-view--schedule-cache))))
     (when (string-blank-p target-id)
       (user-error "Nie podano identyfikatora planu"))
-    (if (and (not refresh)
-             plan-polsl-view-entries
-             (string-equal (format "%s" plan-polsl-view-id) (format "%s" target-id))
-             (equal plan-polsl-view-type target-type))
-        (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                                   plan-polsl-view-meta
-                                                   target-id target-type active-mon
-                                                   (buffer-name))))
+    (if cached-data
+        ;; load from session cache
+        (let* ((meta (plist-get cached-data :meta))
+               (entries (plist-get cached-data :entries))
+               (buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
           (plan-polsl-view--display-window buf))
+
+      ;; non-blocking asynchronous network retrieval
       (message "Pobieranie planu z plan.polsl.pl (ID: %s)..." target-id)
-      (let* ((html (plan-polsl-http-fetch-schedule target-id target-type))
-             (meta (plan-polsl-parser-extract-metadata html))
-             (entries (plan-polsl-parser-parse-entries html)))
-        (unless entries
-          (user-error "Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id))
-        (let ((buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
-          (plan-polsl-view--display-window buf)
-          (message "Wyświetlono plan PolSL (%d zajęć)" (length entries)))))))
+      (plan-polsl-http-fetch-schedule-async
+       target-id target-type
+       (lambda (html)
+         (let* ((meta (plan-polsl-parser-extract-metadata html))
+                (entries (plan-polsl-parser-parse-entries html)))
+           (if (null entries)
+               (message "plan-polsl: Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id)
+             (puthash cache-key (list :meta meta :entries entries) plan-polsl-view--schedule-cache)
+             (let ((buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
+               (plan-polsl-view--display-window buf)
+               (message "Wyświetlono plan PolSL (%d zajęć)" (length entries))))))
+       (lambda (err)
+         (message "plan-polsl błąd pobierania: %s" err))))))
 
 ;;;###autoload
 (defun plan-polsl-refresh ()
