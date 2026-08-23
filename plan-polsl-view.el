@@ -58,9 +58,6 @@
   "Face for room, teacher, and section metadata."
   :group 'plan-polsl-faces)
 
-(defvar plan-polsl-view--schedule-cache (make-hash-table :test 'equal)
-  "Session cache mapping (ID-STRING . TYPE) to (:meta META :entries ENTRIES).")
-
 (defvar-local plan-polsl-view-id nil
   "Buffer-local schedule identifier.")
 
@@ -471,6 +468,17 @@
                (delta (- target-width (window-width win))))
           (ignore-errors (window-resize win delta t)))))))
 
+(defun plan-polsl-view--find-live-buffer (target-id target-type)
+  "Find an existing live buffer displaying TARGET-ID and TARGET-TYPE."
+  (cl-find-if (lambda (buf)
+                (with-current-buffer buf
+                  (and (derived-mode-p 'plan-polsl-mode)
+                       plan-polsl-view-entries
+                       (string-equal (format "%s" (or plan-polsl-view-id ""))
+                                     (format "%s" target-id))
+                       (equal plan-polsl-view-type target-type))))
+              (buffer-list)))
+
 ;;;###autoload
 (defun plan-polsl (&optional id type refresh monday)
   "Display the PolSL timetable in a dedicated in-memory buffer.
@@ -486,16 +494,12 @@ MONDAY specifies the active week's Monday (defaults to current week)."
          (active-mon (or monday
                          plan-polsl-view-active-monday
                          (plan-polsl-view--get-monday (current-time))))
-         (cache-key (cons (format "%s" target-id) target-type))
-         (cached-data (unless refresh (gethash cache-key plan-polsl-view--schedule-cache))))
+         (live-buf (unless refresh (plan-polsl-view--find-live-buffer target-id target-type))))
     (when (string-blank-p target-id)
       (user-error "Nie podano identyfikatora planu"))
-    (if cached-data
-        ;; load from session cache
-        (let* ((meta (plist-get cached-data :meta))
-               (entries (plist-get cached-data :entries))
-               (buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
-          (plan-polsl-view--display-window buf))
+    (if live-buf
+        ;; instant switch to existing open buffer
+        (plan-polsl-view--display-window live-buf)
 
       ;; non-blocking asynchronous network retrieval
       (message "Pobieranie planu z plan.polsl.pl (ID: %s)..." target-id)
@@ -506,7 +510,6 @@ MONDAY specifies the active week's Monday (defaults to current week)."
                 (entries (plan-polsl-parser-parse-entries html)))
            (if (null entries)
                (message "plan-polsl: Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id)
-             (puthash cache-key (list :meta meta :entries entries) plan-polsl-view--schedule-cache)
              (let ((buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
                (plan-polsl-view--display-window buf)
                (message "Wyświetlono plan PolSL (%d zajęć)" (length entries))))))
