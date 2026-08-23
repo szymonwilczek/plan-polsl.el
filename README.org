@@ -1,58 +1,100 @@
 #+title: plan-polsl.el
 #+author: Szymon Wilczek
 #+email: swilczek.lx@gmail.com
-#+language: pl
+#+language: en
 #+startup: overview
 
 [[https://www.gnu.org/software/emacs/][https://img.shields.io/badge/Emacs-28.1+-blueviolet.svg?style=flat-square&logo=gnu-emacs&logoColor=white]]
 [[https://www.gnu.org/licenses/gpl-3.0][https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square]]
 
-*plan-polsl.el* to pakiet dla GNU Emacsa integrujący oficjalny system planów zajęć *Politechniki Śląskiej* ([[https://plan.polsl.pl/][plan.polsl.pl]]) dla grup studenckich, nauczycieli akademickich i sal z *Org-mode*, *Org-Agenda* oraz dedykowanym podglądem w buforze pamięci.
+Emacs package integrating the timetable system of the *Silesian University of Technology* ([[https://plan.polsl.pl/][plan.polsl.pl]]) for student groups, faculty teachers, and rooms with *Org-mode*, *Org-Agenda*, and a dedicated in-memory timetable buffer.
 
-Pobiera plan bezpośrednio z serwerów uczelni, parsuje współrzędne siatki godzinowej, sal i grup/sekcji, wyświetla go w dedykowanym buforze ~*Plan PolSL*~ oraz synchronizuje z kalendarzem Org-Agenda.
+* What's inside:
 
-* Możliwości
+- *Timetable Buffer* (~M-x plan-polsl~): Schedule viewer rendered in separate window.
+- *Default Current Week View:* Adjusts to the current academic week with calendar dates on each day header.
+- *Interactive Search* (~M-x plan-polsl-search~):
+  - *Teachers:* Surname completion across all university faculty members.
+  - *Groups & Rooms:* Tree navigation (Faculty -> Programme -> Semester -> Group).
+- *Org-Agenda Integration:* Recurring timestamps anchored to the academic semester start date.
 
-- *Dedykowany podgląd w pamięci (~M-x plan-polsl~):* Natychmiastowe przeglądanie sformatowanego planu w buforze ~*Plan PolSL*~ o szerokości 65% z klawiszami:
-  - ~q~ : Zamknij bufor
-  - ~r~ : Odśwież plan z serwera
-  - ~s~ : Synchronizuj z Org-Agenda
-  - ~<~ / ~>~ : Nawigacja między tygodniami (poprzedni / następny tydzień)
-- *Domyślny widok bieżącego tygodnia:* Automatyczne dopasowanie do bieżącego tygodnia akademickiego (tydzień parzysty/nieparzysty) z dokładnymi datami kalendarzowymi.
-- *Błyskawiczne wyszukiwanie (~M-x plan-polsl-search~):*
-  - *Nauczyciele:* Natychmiastowe wyszukiwanie po nazwisku z podpowiedziami spośród wszystkich pracowników uczelni.
-  - *Grupy i sale:* Nawigacja po strukturze drzewiastej (Wydział -> Kierunek -> Semestr -> Grupa).
-- *Wsparcie dla grup studenckich, nauczycieli i sal:* Obsługa endpointów grup (~type=0~), nauczycieli (~type=10~) oraz sal (~type=20~).
-- *Bezpośrednia integracja z plan.polsl.pl:* Pobiera i parsuje układ planu w locie przy użyciu wbudowanego silnika ~libxml/dom~.
-- *Inteligentne znaczniki powtarzalności:* Zakotwicza terminy w dacie startu semestru akademickiego, dzięki czemu w wakacje Org-Agenda jest całkowicie czysta.
-- *Automatyczna rejestracja w Org-Agenda:* Wygenerowany plik jest automatycznie dodawany do ~org-agenda-files~.
+** How to Find Your Schedule ID
 
-* Konfiguracja (use-package)
+You can obtain your ~plan-polsl-id~ and ~plan-polsl-type~ using either of two methods:
 
-Wszystkie parametry konfiguruje się bezpośrednio w definicji pakietu w Emacsie:
+*** Method 1: Directly inside Emacs (Recommended)
+1. Run ~M-x plan-polsl-search~.
+2. Choose your category.
+3. Select your teacher name, student group, or room.
+4. Schedule opens in the ~*Plan PolSL*~ buffer, displaying the ID in the header banner.
+5. Copy the ID into your configuration.
 
+*** Method 2: From the browser URL
+Open the schedule on [[https://plan.polsl.pl/][plan.polsl.pl]] and check the browser address bar:
+- *Student Group:* ~plan.php?type=0&id=343266256~ $\to$ ~plan-polsl-id "343266256"~, ~plan-polsl-type 0~
+- *Teacher:* ~plan.php?type=10&id=600~ $\to$ ~plan-polsl-id "600"~, ~plan-polsl-type 10~
+- *Room / Resource:* ~plan.php?type=20&id=51112~ $\to$ ~plan-polsl-id "51112"~, ~plan-polsl-type 20~
+
+The address bar probably will be empty, to have this displayed, do the following:
+#+BEGIN_QUOTE
+I'm using Mozilla Firefox, so I'm going with their convention. Probably you should check that
+out for yourself if you are using something different.
+#+END_QUOTE
+
+1. Right click near the plan table.
+2. From the context menu choose: ~This frame (pl. Ta ramka)~ -> ~Show only this frame (pl. Pokaż tylko tę ramkę)~
+3. Congratulations! You've got yourself fully armed address bar with desired parameters.
+
+** Configuration Examples (use-package)
+
+Configure the package parameters directly in your Emacs configuration:
+
+*** 1. Student Group (~type=0~)
 #+begin_src elisp
   (use-package plan-polsl
-    :load-path "~/Dokumenty/GitHub/plan-polsl.el"
+    :vc (:url "https://github.com/szymonwilczek/plan-polsl.el")
     :commands (plan-polsl plan-polsl-sync plan-polsl-open-plan plan-polsl-search)
     :custom
-    (plan-polsl-id "343266256")                                    ;; ID grupy lub nauczyciela z plan.polsl.pl
-    (plan-polsl-type 0)                                            ;; 0 = grupa studencka, 10 = nauczyciel, 20 = sala
-    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org") ;; Ścieżka docelowa pliku Org
-    (plan-polsl-auto-add-to-agenda t))                             ;; Dodaj do Org-Agenda
+    (plan-polsl-id "343266256")                                    ;; Group ID from plan.polsl.pl
+    (plan-polsl-type 0)                                            ;; 0 = student group
+    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org") ;; Destination Org file
+    (plan-polsl-auto-add-to-agenda t))                             ;; Add to Org-Agenda
 #+end_src
 
-* Komendy interaktywne
+*** 2. Academic Teacher (~type=10~)
+#+begin_src elisp
+  (use-package plan-polsl
+    :vc (:url "https://github.com/szymonwilczek/plan-polsl.el")
+    :commands (plan-polsl plan-polsl-sync plan-polsl-open-plan plan-polsl-search)
+    :custom
+    (plan-polsl-id "600")                                          ;; Teacher ID
+    (plan-polsl-type 10)                                           ;; 10 = academic teacher
+    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org")
+    (plan-polsl-auto-add-to-agenda t))
+#+end_src
 
-| Komenda                  | Opis                                                                                                       |
-|--------------------------+------------------------------------------------------------------------------------------------------------|
-| ~M-x plan-polsl~           | Otwiera dedykowany bufor ~*Plan PolSL*~ z podglądem planu skonfigurowanego w ~plan-polsl-id~.                  |
-| ~M-x plan-polsl-search~    | Interaktywne wyszukiwanie planu dowolnej grupy, nauczyciela lub sali przez nawigację po drzewie wydziałów. |
-| ~M-x plan-polsl-sync~      | Pobiera i aktualizuje plan do pliku Org-mode dla Org-Agenda.                                               |
-| ~M-x plan-polsl-open-plan~ | Otwiera wygenerowany plik ~plan-polsl.org~.                                                                  |
+*** 3. Classroom / Lab Room (~type=20~)
+#+begin_src elisp
+  (use-package plan-polsl
+    :vc (:url "https://github.com/szymonwilczek/plan-polsl.el")
+    :commands (plan-polsl plan-polsl-sync plan-polsl-open-plan plan-polsl-search)
+    :custom
+    (plan-polsl-id "51112")                                        ;; Room ID (e.g. Aula A Alstom)
+    (plan-polsl-type 20)                                           ;; 20 = room / resource
+    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org")
+    (plan-polsl-auto-add-to-agenda t))
+#+end_src
 
-* Autor & Licencja
+** Interactive Commands
 
-- *Autor:* Szymon Wilczek
-- *Licencja:* [[file:LICENSE][GNU General Public License v3.0 (GPLv3)]]
-  
+| Command                  | Description                                                             |
+|--------------------------+-------------------------------------------------------------------------|
+| ~M-x plan-polsl~           | Open ~*Plan PolSL*~ buffer for your configured default schedule.          |
+| ~M-x plan-polsl-search~    | Search for any teacher, student group, or room timetable interactively. |
+| ~M-x plan-polsl-sync~      | Download and update your schedule in the Org-mode file for Org-Agenda.  |
+| ~M-x plan-polsl-open-plan~ | Open the generated ~plan-polsl.org~ file.                                 |
+
+** Author & License
+
+- *Author:* [[https://github.com/szymonwilczek][Szymon Wilczek]]
+- *License:* [[file:LICENSE][GNU General Public License v3.0 (GPLv3)]]
