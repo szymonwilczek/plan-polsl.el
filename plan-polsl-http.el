@@ -87,7 +87,7 @@ Uses `curl` with legacy TLS negotiation and Connection: close for optimal speed.
 
 (defun plan-polsl-http-fetch-async (url callback &optional error-callback timeout)
   "Fetch HTML content from URL asynchronously without blocking Emacs UI.
-Runs CALLBACK with the decoded HTML string upon success, or ERROR-CALLBACK upon error."
+Runs CALLBACK with decoded HTML string on success, or ERROR-CALLBACK on error."
   (if (not (executable-find "curl"))
       ;; fallback to synchronous fetch in separate callback
       (condition-case err

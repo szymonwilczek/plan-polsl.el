@@ -34,13 +34,13 @@
   :group 'plan-polsl)
 
 (defcustom plan-polsl-id nil
-  "Default plan identifier (e.g. \"343266256\" for student group, or teacher/room ID)."
+  "Default plan ID (e.g. \"343266256\" for student group, or teacher ID)."
   :type '(choice (const :tag "Not Set" nil)
                  (string :tag "Schedule ID"))
   :group 'plan-polsl)
 
 (defcustom plan-polsl-type 0
-  "Type of schedule endpoint (0 = student group, 10 = teacher/faculty, 20 = room/resource)."
+  "Type of schedule (0 = student group, 10 = teacher, 20 = room)."
   :type '(choice (const :tag "Student Group (0)" 0)
                  (const :tag "Teacher / Faculty (10)" 10)
                  (const :tag "Room / Resource (20)" 20))
@@ -54,7 +54,7 @@
 
 (defcustom plan-polsl-semester-start nil
   "Start date of the academic semester in \"YYYY-MM-DD\" format.
-When nil, automatically determines the next semester start (e.g. early October for winter semester)."
+When nil, automatically computes the appropriate semester start date."
   :type '(choice (const :tag "Auto (October / March)" nil)
                  (string :tag "Custom Date (YYYY-MM-DD)"))
   :group 'plan-polsl)

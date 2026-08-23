@@ -194,7 +194,8 @@ If DEFAULT is a number, returns integer; otherwise returns string."
           :path path)))
 
 (defun plan-polsl-parser-parse-entries (html)
-  "Parse HTML from plan.polsl.pl using DOM and return list of structured class entries."
+  "Parse HTML from plan.polsl.pl using DOM.
+Returns list of structured class entries."
   (let* ((dom (with-temp-buffer
                 (insert html)
                 (libxml-parse-html-region (point-min) (point-max))))

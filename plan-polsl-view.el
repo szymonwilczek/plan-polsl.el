@@ -347,8 +347,8 @@
       (plan-polsl-view--display-detail-popup entry)
     (user-error "Kursor nie znajduje się na linii zajęć")))
 
-(defun plan-polsl-view--buffer-name (id type-val meta)
-  "Generate appropriate buffer name for ID, TYPE-VAL, and META."
+(defun plan-polsl-view--buffer-name (id _type-val meta)
+  "Generate appropriate buffer name for ID, _TYPE-VAL, and META."
   (let ((default-id (bound-and-true-p plan-polsl-id))
         (title (plist-get meta :title)))
     (if (and default-id (string-equal (format "%s" id) (format "%s" default-id)))

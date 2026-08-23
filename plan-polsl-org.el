@@ -12,6 +12,8 @@
 (require 'cl-lib)
 (require 'time-date)
 
+(defvar org-agenda-files)
+
 (defconst plan-polsl-org-day-abbrevs
   ["pon" "wto" "śro" "czw" "pią"]
   "Short day of week names used in Org active timestamps.")
@@ -50,7 +52,7 @@ Otherwise, auto-computes the appropriate semester start date."
     (plan-polsl-org--auto-semester-monday)))
 
 (defun plan-polsl-org--format-timestamp (day-index start-time end-time &optional biweekly)
-  "Format an active recurring Org timestamp for DAY-INDEX (1-5), START-TIME, END-TIME."
+  "Format an active recurring Org timestamp for DAY-INDEX, START-TIME, END-TIME."
   (let* ((monday (plan-polsl-org--get-base-monday))
          (day-offset (1- day-index))
          (monday-encoded (encode-time 0 0 12 (nth 2 monday) (nth 1 monday) (nth 0 monday)))

@@ -13,8 +13,13 @@
 (require 'cl-lib)
 (require 'plan-polsl-http)
 
+(declare-function plan-polsl "plan-polsl-view")
+
 (defvar plan-polsl-search--teachers-cache nil
   "In-memory cached alist of (TEACHER-NAME . TEACHER-ID).")
+
+(defvar plan-polsl-search--id-to-teacher-cache nil
+  "In-memory hash table mapping teacher numeric ID strings to full names.")
 
 (defcustom plan-polsl-search-cache-file
   (expand-file-name "plan-polsl-teachers.cache"
@@ -155,9 +160,6 @@ Returns list of (:branch ID NAME) and (:leaf TYPE ID NAME) items."
             (insert ";; Plan-PolSL teachers cache\n")
             (prin1 plan-polsl-search--teachers-cache (current-buffer))))
         plan-polsl-search--teachers-cache))))
-
-(defvar plan-polsl-search--id-to-teacher-cache nil
-  "In-memory hash table mapping teacher numeric ID strings to full names.")
 
 (defun plan-polsl-search--get-teacher-by-id (tid)
   "Return full teacher name for numeric TID in O(1) time."
