@@ -15,12 +15,11 @@ Emacs package integrating the timetable system of the *Silesian University of Te
 
 * What's inside:
 
-- *Timetable Buffer* (~M-x plan-polsl~): Schedule viewer rendered in separate window.
-- *Default Current Week View:* Adjusts to the current academic week with calendar dates on each day header.
-- *Interactive Search* (~M-x plan-polsl-search~):
-  - *Teachers:* Surname completion across all university faculty members.
-  - *Groups & Rooms:* Tree navigation (Faculty -> Programme -> Semester -> Group).
-- *Org-Agenda Integration:* Recurring timestamps anchored to the academic semester start date.
+- *Timetable Buffer* (~M-x plan-polsl~): Asynchronous schedule viewer.
+- *Default Current Week View:* Aligns to the active academic week with dates, day headings and more.
+- *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
+- *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
+- *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
 
 ** How to Find Your Schedule ID
 
@@ -28,9 +27,9 @@ You can obtain your ~plan-polsl-id~ and ~plan-polsl-type~ using either of two me
 
 *** Method 1: Directly inside Emacs (Recommended)
 1. Run ~M-x plan-polsl-search~.
-2. Choose your category.
-3. Select your teacher name, student group, or room.
-4. Schedule opens in the ~*Plan PolSL*~ buffer, displaying the ID in the header banner.
+2. Choose your category (Student group, Teacher, or Room).
+3. Select your desired timetable.
+4. Schedule opens in the buffer, displaying the ID in the header banner.
 5. Copy the ID into your configuration.
 
 *** Method 2: From the browser URL
@@ -90,23 +89,11 @@ Configure the package parameters directly in your Emacs configuration:
 
 | Command                         | Description                                                            |
 |---------------------------------+------------------------------------------------------------------------|
-| ~M-x plan-polsl~                  | Open ~*Plan PolSL*~ buffer for your configured default schedule.         |
+| ~M-x plan-polsl~                  | Open timetable buffer for your configured default schedule.            |
 | ~M-x plan-polsl-search~           | Search for any teacher, group, or room timetable.                      |
 | ~M-x plan-polsl-refresh-teachers~ | Force update the local cache of academic teachers from plan.polsl.pl.  |
 | ~M-x plan-polsl-sync~             | Download and update your schedule in the Org-mode file for Org-Agenda. |
 | ~M-x plan-polsl-open-plan~        | Open the generated ~plan-polsl.org~ file.                                |
-
-** Keybindings in ~*Plan PolSL*~ Buffer
-
-| Key | Action                                                |
-|-----+-------------------------------------------------------|
-| ~r~   | Refresh schedule from server                          |
-| ~t~   | Reset view to current academic week                   |
-| ~<~   | Navigate to previous week                             |
-| ~>~   | Navigate to next week                                 |
-| ~RET~ | Open course details popup & instructor timetable jump |
-| ~s~   | Synchronize with Org-Agenda                           |
-| ~q~   | Close buffer window                                   |
 
 ** Author & License
 
