@@ -79,6 +79,7 @@
     (define-key map (kbd "r") #'plan-polsl-refresh)
     (define-key map (kbd "s") #'plan-polsl-sync)
     (define-key map (kbd "t") #'plan-polsl-current-week)
+    (define-key map (kbd "w") #'plan-polsl-goto-week)
     (define-key map (kbd "<") #'plan-polsl-prev-week)
     (define-key map (kbd ">") #'plan-polsl-next-week)
     (define-key map (kbd "TAB") #'plan-polsl-next-entry)
@@ -97,6 +98,7 @@
     "r" #'plan-polsl-refresh
     "s" #'plan-polsl-sync
     "t" #'plan-polsl-current-week
+    "w" #'plan-polsl-goto-week
     "<" #'plan-polsl-prev-week
     ">" #'plan-polsl-next-week
     (kbd "TAB") #'plan-polsl-next-entry
@@ -602,6 +604,28 @@ MONDAY specifies the active week's Monday (defaults to current week)."
                                                current-mon
                                                (buffer-name))))
       (plan-polsl-view--display-window buf))))
+
+;;;###autoload
+(defun plan-polsl-goto-week (week-num)
+  "Jump directly to WEEK-NUM (1-16) of the current academic semester."
+  (interactive "nPrzejdź do tygodnia semestru (1-16): ")
+  (unless plan-polsl-view-entries
+    (user-error "Brak załadowanego planu"))
+  (when (or (< week-num 1) (> week-num 30))
+    (user-error "Numer tygodnia musi być z zakresu 1-30"))
+  (let* ((sem-start (plan-polsl-view--determine-semester-start (current-time)))
+         (sem-start-mon (plan-polsl-view--get-monday sem-start))
+         (target-mon (time-add sem-start-mon (days-to-time (* (1- week-num) 7)))))
+    (setq plan-polsl-view-active-monday target-mon)
+    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                               plan-polsl-view-meta
+                                               plan-polsl-view-id
+                                               plan-polsl-view-type
+                                               target-mon
+                                               (buffer-name))))
+      (plan-polsl-view--display-window buf)
+      (message "Przejście do tygodnia %d (%s)"
+               week-num (format-time-string "%d.%m.%Y" target-mon)))))
 
 ;;;###autoload
 (defun plan-polsl-prev-week ()
