@@ -89,6 +89,8 @@
     (define-key map (kbd "RET") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<return>") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<mouse-2>") #'plan-polsl-view-show-detail)
+    (define-key map (kbd "?") #'plan-polsl-help)
+    (define-key map (kbd "h") #'plan-polsl-help)
     map)
   "Keymap for `plan-polsl-mode'.")
 
@@ -106,7 +108,9 @@
     (kbd "<backtab>") #'plan-polsl-prev-entry
     (kbd "S-TAB") #'plan-polsl-prev-entry
     (kbd "RET") #'plan-polsl-view-show-detail
-    (kbd "<return>") #'plan-polsl-view-show-detail))
+    (kbd "<return>") #'plan-polsl-view-show-detail
+    "?" #'plan-polsl-help
+    "h" #'plan-polsl-help))
 
 (define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
   "Major mode for browsing PolSL university timetables."
@@ -411,6 +415,16 @@
           (goto-char pos))
       (user-error "Początek listy zajęć"))))
 
+;;;###autoload
+(defun plan-polsl-help ()
+  "Display quick keybindings cheat-sheet for `plan-polsl-mode'."
+  (interactive)
+  (message (concat
+            (propertize "Plan PolSL Shortcuts: " 'face 'bold)
+            "[< / >] Tygodnie | [t] Dziś | [w] Tydzień (1-16) | "
+            "[TAB / S-TAB] Następne/poprzednie zajęcia | "
+            "[Enter] Szczegóły | [r] Odśwież | [s] Sync | [q] Zamknij")))
+
 (defun plan-polsl-view--buffer-name (id _type-val meta)
   "Generate appropriate buffer name for ID, _TYPE-VAL, and META."
   (let ((default-id (bound-and-true-p plan-polsl-id))
@@ -463,7 +477,7 @@
          (header-line-1 (if path (format "%s" path) ""))
          (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
          (header-line-3 (format "Tydzień: %s" week-label))
-         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [< / >] Zmiana tygodnia   [Enter] Szczegóły"))
+         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [w] Tydzień   [< / >] Tygodnie   [?] Pomoc"))
 
     (when path (push header-line-1 all-lines))
     (push header-line-2 all-lines)
