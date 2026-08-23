@@ -1,10 +1,10 @@
-;;; plan-polsl-view.el --- Timetable buffer and mode -*- lexical-binding: t; -*-
+;;; plan-polsl-view.el --- Timetable buffer viewer and navigation mode -*- lexical-binding: t; coding: utf-8; -*-
 
 ;; Author: Szymon Wilczek
 ;; Keywords: calendar, polsl, view
 
 ;;; Commentary:
-;; Buffer view for browsing Politechnika Śląska timetables.
+;; Dedicated buffer viewer and navigation mode for browsing Politechnika Śląska timetables.
 
 ;;; Code:
 
@@ -86,7 +86,7 @@
     ">" #'plan-polsl-next-week))
 
 (define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
-  "Major mode for browsing PolSL university timetable in a dedicated buffer."
+  "Major mode for browsing PolSL university timetables."
   (setq buffer-read-only t)
   (setq truncate-lines t))
 
@@ -102,14 +102,10 @@
   (let* ((decoded (decode-time target-time))
          (year (nth 5 decoded))
          (month (nth 4 decoded)))
-
-    ;; winter semester: starts in early October of current/previous year
-    ;; summer semester: starts in late Feb / early March
+    ;; winter semester: starts early October
+    ;; summer semester: starts late Feb / early March
     (if (or (>= month 10) (<= month 2))
-        (let ((winter-year (if (<= month 2) (1- year) year)))
-          ;; first Monday of October
-          (encode-time 0 0 0 5 10 winter-year))
-      ;; summer semester (March - September)
+        (encode-time 0 0 0 5 10 (if (<= month 2) (1- year) year))
       (encode-time 0 0 0 2 3 year))))
 
 (defun plan-polsl-view--week-info (monday-time)
@@ -117,11 +113,9 @@
   (let* ((sem-start (plan-polsl-view--determine-semester-start monday-time))
          (sem-start-mon (plan-polsl-view--get-monday sem-start))
          (diff-sec (float-time (time-subtract monday-time sem-start-mon)))
-         (diff-weeks (floor (/ diff-sec (* 7 86400))))
-         (week-num (1+ diff-weeks))
+         (week-num (1+ (floor (/ diff-sec (* 7 86400)))))
          (cycle (if (cl-oddp week-num) 'odd 'even))
          (cycle-name (if (eq cycle 'odd) "Nieparzysty" "Parzysty"))
-         (friday (time-add monday-time (days-to-time 4)))
          (sunday (time-add monday-time (days-to-time 6)))
          (date-range (format "%s - %s"
                              (format-time-string "%d.%m" monday-time)
@@ -141,10 +135,7 @@
          (dates (plist-get entry :dates))
          (cycle (plist-get entry :cycle)))
     (cond
-     ;; if entry has explicit dates list,
-     ;; check if current date is in the list
      (dates (member day-str dates))
-     ;; otherwise check cycle parity
      ((eq cycle 'weekly) t)
      ((eq cycle 'odd) (eq week-cycle 'odd))
      ((eq cycle 'even) (eq week-cycle 'even))
@@ -161,13 +152,13 @@
     (propertize (format "[%-12s]" (or type-str "Zajęcia")) 'face face)))
 
 (defun plan-polsl-view--pad-column (str width)
-  "Pad STR with spaces so that its visual `string-width' is exactly WIDTH."
+  "Pad STR with spaces so that visual `string-width' matches WIDTH."
   (let* ((sw (string-width (or str "")))
          (padding (make-string (max 0 (- width sw)) ?\s)))
     (concat (or str "") padding)))
 
 (defun plan-polsl-view--format-entry-line (entry subject-col-width)
-  "Return propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH."
+  "Format propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH."
   (let* ((start (plist-get entry :start-time))
          (end (plist-get entry :end-time))
          (title (plist-get entry :title))
@@ -202,6 +193,32 @@
                           "")))
       (format "  %s  %s  %s%s" time-str badge subj-padded meta-display))))
 
+(defun plan-polsl-view--filter-week-entries (entries monday-time week-cycle)
+  "Group ENTRIES into 5 day vectors for the week at MONDAY-TIME and WEEK-CYCLE."
+  (let ((day-groups (make-vector 5 nil)))
+    (dolist (e entries)
+      (let* ((d-idx (plist-get e :day-index))
+             (idx (1- d-idx)))
+        (when (and (>= idx 0) (< idx 5)
+                   (plan-polsl-view--entry-occurs-p e d-idx monday-time week-cycle))
+          (aset day-groups idx (append (aref day-groups idx) (list e))))))
+    day-groups))
+
+(defun plan-polsl-view--compute-subject-width (day-groups)
+  "Compute maximum subject title column width across all DAY-GROUPS."
+  (let ((max-w 18))
+    (dotimes (i 5)
+      (dolist (e (aref day-groups i))
+        (let* ((title (plist-get e :title))
+               (biweekly (plist-get e :biweekly))
+               (sections (plist-get e :sections))
+               (sec-str (if sections (format " (sek. %s)" (mapconcat #'identity sections ", ")) ""))
+               (len (string-width (format "%s%s%s"
+                                          (if (and biweekly (not (string-prefix-p "*" title))) "* " "")
+                                          title sec-str))))
+          (setq max-w (max max-w len)))))
+    max-w))
+
 (defun plan-polsl-view--render-buffer (entries meta id type-val monday-time)
   "Render ENTRIES and META for ID, TYPE-VAL and MONDAY-TIME into `*Plan PolSL*' buffer."
   (let* ((buf (get-buffer-create "*Plan PolSL*"))
@@ -210,84 +227,58 @@
          (week-info (plan-polsl-view--week-info monday-time))
          (week-label (plist-get week-info :label))
          (week-cycle (plist-get week-info :cycle))
+         (day-groups (plan-polsl-view--filter-week-entries entries monday-time week-cycle))
+         (max-subj-w (plan-polsl-view--compute-subject-width day-groups))
+         (rendered-days (make-vector 5 nil))
+         (all-lines nil)
+         (header-line-1 (if path (format "%s" path) ""))
+         (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
+         (header-line-3 (format "Tydzień: %s" week-label))
+         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [< / >] Zmiana tygodnia"))
 
-         ;; filter entries for active week
-         (day-groups (make-vector 5 nil)))
-    (dolist (e entries)
-      (let* ((d-idx (plist-get e :day-index))
-             (idx (1- d-idx)))
-        (when (and (>= idx 0) (< idx 5)
-                   (plan-polsl-view--entry-occurs-p e d-idx monday-time week-cycle))
-          (aset day-groups idx (append (aref day-groups idx) (list e))))))
+    (when path (push header-line-1 all-lines))
+    (push header-line-2 all-lines)
+    (push header-line-3 all-lines)
+    (push header-line-4 all-lines)
 
-    ;; compute maximum subject column width
-    (let ((max-subj-w 18))
-      (dotimes (i 5)
+    (dotimes (i 5)
+      (let ((day-lines nil))
         (dolist (e (aref day-groups i))
-          (let* ((etitle (plist-get e :title))
-                 (biweekly (plist-get e :biweekly))
-                 (sections (plist-get e :sections))
-                 (sec-str (if sections (format " (sek. %s)" (mapconcat #'identity sections ", ")) ""))
-                 (s-len (string-width (format "%s%s%s"
-                                              (if (and biweekly (not (string-prefix-p "*" etitle))) "* " "")
-                                              etitle sec-str))))
-            (setq max-subj-w (max max-subj-w s-len)))))
+          (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w)))
+            (push line-str day-lines)
+            (push (substring-no-properties line-str) all-lines)))
+        (aset rendered-days i (nreverse day-lines))))
 
-      ;; format all entry lines and collect rendered day lines
-      (let ((rendered-days (make-vector 5 nil))
-            (all-rendered-lines nil)
-            (header-line-1 (if path (format "%s" path) ""))
-            (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
-            (header-line-3 (format "Tydzień: %s" week-label))
-            (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [< / >] Zmiana tygodnia"))
-        (when path (push header-line-1 all-rendered-lines))
-        (push header-line-2 all-rendered-lines)
-        (push header-line-3 all-rendered-lines)
-        (push header-line-4 all-rendered-lines)
-        (dotimes (i 5)
-          (let ((day-entries (aref day-groups i))
-                (day-lines nil))
-            (dolist (e day-entries)
-              (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w)))
-                (push line-str day-lines)
-                (push (substring-no-properties line-str) all-rendered-lines)))
-            (aset rendered-days i (nreverse day-lines))))
+    (let* ((max-w (max 75 (apply #'max (mapcar #'string-width all-lines))))
+           (sep-line (make-string max-w ?─)))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (plan-polsl-mode)
 
-        ;; compute exact maximum line width in the entire buffer
-        (let* ((max-w (max 75 (apply #'max (mapcar #'string-width all-rendered-lines))))
-               (sep-line (make-string max-w ?─)))
-          (with-current-buffer buf
-            (let ((inhibit-read-only t))
-              (erase-buffer)
-              (plan-polsl-mode)
+          ;; header banner
+          (when path
+            (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
+          (insert (propertize (format "%s\n" header-line-2) 'face '(:weight bold :height 1.15)))
+          (insert (propertize (format "%s\n\n" header-line-3) 'face '(:weight bold :foreground "#51afef")))
+          (insert (propertize (format "%s\n" header-line-4) 'face 'font-lock-comment-face))
+          (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
 
-              ;; header banner
-              (when path
-                (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
-              (insert (propertize (format "%s\n" header-line-2)
-                                  'face '(:weight bold :height 1.15)))
-              (insert (propertize (format "%s\n\n" header-line-3)
-                                  'face '(:weight bold :foreground "#51afef")))
-              (insert (propertize (format "%s\n" header-line-4)
-                                  'face 'font-lock-comment-face))
-              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
-
-              ;; days
-              (dotimes (i 5)
-                (let* ((day-lines (aref rendered-days i))
-                       (day-time (time-add monday-time (days-to-time i)))
-                       (day-date-str (format-time-string "%d.%m.%Y" day-time))
-                       (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"])
-                       (day-title (format "%s (%s)" (aref day-names i) day-date-str)))
-                  (insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
-                  (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
-                  (if day-lines
-                      (dolist (l day-lines)
-                        (insert l "\n"))
-                    (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
-                  (insert "\n"))))
-            (goto-char (point-min)))
-          buf)))))
+          ;; days
+          (dotimes (i 5)
+            (let* ((day-lines (aref rendered-days i))
+                   (day-time (time-add monday-time (days-to-time i)))
+                   (day-date-str (format-time-string "%d.%m.%Y" day-time))
+                   (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"])
+                   (day-title (format "%s (%s)" (aref day-names i) day-date-str)))
+              (insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
+              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
+              (if day-lines
+                  (dolist (l day-lines) (insert l "\n"))
+                (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
+              (insert "\n"))))
+        (goto-char (point-min)))
+      buf)))
 
 (defun plan-polsl-view--display-window (buf)
   "Display BUF in a window with 65% width if split."
@@ -296,8 +287,6 @@
                                    display-buffer-same-window))))
     (when win
       (select-window win)
-
-      ;; resize window
       (when (and (> (frame-width) 100) (not (one-window-p)))
         (let* ((target-width (floor (* (frame-width) 0.65)))
                (delta (- target-width (window-width win))))
