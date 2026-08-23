@@ -96,6 +96,17 @@ Configure the package parameters directly in your Emacs configuration:
 | ~M-x plan-polsl-sync~             | Download and update your schedule in the Org-mode file for Org-Agenda. |
 | ~M-x plan-polsl-open-plan~        | Open the generated ~plan-polsl.org~ file.                                |
 
+** Keybindings in ~*Plan PolSL*~ Buffer
+
+| Key | Action                                    |
+|-----+-------------------------------------------|
+| ~r~ | Refresh schedule from server              |
+| ~t~ | Reset view to current academic week       |
+| ~<~ | Navigate to previous week                 |
+| ~>~ | Navigate to next week                     |
+| ~s~ | Synchronize with Org-Agenda               |
+| ~q~ | Close buffer window                       |
+
 ** Author & License
 
 - *Author:* [[https://github.com/szymonwilczek][Szymon Wilczek]]

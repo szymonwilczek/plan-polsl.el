@@ -72,6 +72,7 @@
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "r") #'plan-polsl-refresh)
     (define-key map (kbd "s") #'plan-polsl-sync)
+    (define-key map (kbd "t") #'plan-polsl-current-week)
     (define-key map (kbd "<") #'plan-polsl-prev-week)
     (define-key map (kbd ">") #'plan-polsl-next-week)
     map)
@@ -82,6 +83,7 @@
     "q" #'quit-window
     "r" #'plan-polsl-refresh
     "s" #'plan-polsl-sync
+    "t" #'plan-polsl-current-week
     "<" #'plan-polsl-prev-week
     ">" #'plan-polsl-next-week))
 
@@ -234,7 +236,7 @@
          (header-line-1 (if path (format "%s" path) ""))
          (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
          (header-line-3 (format "Tydzień: %s" week-label))
-         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [< / >] Zmiana tygodnia"))
+         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [< / >] Zmiana tygodnia"))
 
     (when path (push header-line-1 all-lines))
     (push header-line-2 all-lines)
@@ -340,6 +342,21 @@ MONDAY specifies the active week's Monday (defaults to current week)."
               (or plan-polsl-cached-type (bound-and-true-p plan-polsl-type) 0)
               t
               plan-polsl-view-active-monday))
+
+;;;###autoload
+(defun plan-polsl-current-week ()
+  "Reset timetable view to the current academic week in `*Plan PolSL*' buffer."
+  (interactive)
+  (unless plan-polsl-cached-entries
+    (user-error "Brak załadowanego planu"))
+  (let ((current-mon (plan-polsl-view--get-monday (current-time))))
+    (setq plan-polsl-view-active-monday current-mon)
+    (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
+                                               plan-polsl-cached-meta
+                                               plan-polsl-cached-id
+                                               plan-polsl-cached-type
+                                               current-mon)))
+      (plan-polsl-view--display-window buf))))
 
 ;;;###autoload
 (defun plan-polsl-prev-week ()
