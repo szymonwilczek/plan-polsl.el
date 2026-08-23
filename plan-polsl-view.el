@@ -57,20 +57,20 @@
   "Face for room, teacher, and section metadata."
   :group 'plan-polsl-faces)
 
-(defvar plan-polsl-cached-entries nil
-  "In-memory cache of parsed timetable entries.")
+(defvar-local plan-polsl-view-id nil
+  "Buffer-local schedule identifier.")
 
-(defvar plan-polsl-cached-meta nil
-  "In-memory cache of schedule metadata.")
+(defvar-local plan-polsl-view-type 0
+  "Buffer-local schedule type (0=group, 10=teacher, 20=room).")
 
-(defvar plan-polsl-cached-id nil
-  "Identifier corresponding to `plan-polsl-cached-entries'.")
+(defvar-local plan-polsl-view-entries nil
+  "Buffer-local list of parsed timetable entries.")
 
-(defvar plan-polsl-cached-type nil
-  "Type corresponding to `plan-polsl-cached-entries'.")
+(defvar-local plan-polsl-view-meta nil
+  "Buffer-local schedule metadata plist.")
 
-(defvar plan-polsl-view-active-monday nil
-  "Active Monday timestamp for week-by-week timetable viewing.")
+(defvar-local plan-polsl-view-active-monday nil
+  "Buffer-local active Monday timestamp for week navigation.")
 
 (defvar plan-polsl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -118,7 +118,7 @@
     (kbd "<return>") #'plan-polsl-detail-open-teacher))
 
 (define-derived-mode plan-polsl-detail-mode special-mode "Plan-PolSL:Szczegóły"
-  "Major mode for inspecting class details and navigating to instructor timetables."
+  "Major mode for inspecting class details in a vertical split window."
   (setq buffer-read-only t)
   (setq truncate-lines t))
 
@@ -131,7 +131,7 @@
       (delete-window win))))
 
 (defun plan-polsl-detail-open-teacher ()
-  "Open the schedule of the teacher selected at point."
+  "Open schedule of the teacher selected at point in a separate new buffer."
   (interactive)
   (if-let ((tid (get-text-property (point) 'plan-polsl-teacher-id)))
       (let ((tname (or (get-text-property (point) 'plan-polsl-teacher-name) tid)))
@@ -250,7 +250,7 @@
     (if match (car match) initials)))
 
 (defun plan-polsl-view--display-detail-popup (entry)
-  "Display floating pop-up window with detailed information for ENTRY."
+  "Display vertical split window on the right with detailed information for ENTRY."
   (let* ((buf (get-buffer-create "*Plan PolSL: Szczegóły*"))
          (full-title (or (plist-get entry :full-title)
                          (plist-get entry :title)
@@ -273,17 +273,17 @@
 
         ;; header: full course name
         (insert (propertize (format "%s\n" full-title)
-                            'face '(:weight bold :height 1.2 :foreground "#51afef")))
-        (insert (propertize (make-string 70 ?─) 'face 'font-lock-comment-face) "\n\n")
+                            'face '(:weight bold :height 1.15 :foreground "#51afef")))
+        (insert (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n\n")
 
         ;; class properties
-        (insert (format "  %-14s %s\n"
-                        (propertize "Typ zajęć:" 'face 'font-lock-comment-face)
+        (insert (format "  %-12s %s\n"
+                        (propertize "Typ:" 'face 'font-lock-comment-face)
                         (plan-polsl-view--type-badge type)))
-        (insert (format "  %-14s %s, %s - %s\n"
+        (insert (format "  %-12s %s, %s - %s\n"
                         (propertize "Termin:" 'face 'font-lock-comment-face)
                         day-name start end))
-        (insert (format "  %-14s %s\n"
+        (insert (format "  %-12s %s\n"
                         (propertize "Cykl:" 'face 'font-lock-comment-face)
                         (cond
                          (dates (format "Wybrane terminy (%s)" (mapconcat #'identity dates ", ")))
@@ -292,16 +292,16 @@
                          ((eq cycle 'even) "Tydzień Parzysty (*)")
                          (t "Zajęcia cykliczne"))))
         (when rooms
-          (insert (format "  %-14s %s\n"
+          (insert (format "  %-12s %s\n"
                           (propertize "Sala:" 'face 'font-lock-comment-face)
                           (propertize (mapconcat #'identity rooms ", ") 'face 'bold))))
         (when sections
-          (insert (format "  %-14s %s\n"
+          (insert (format "  %-12s %s\n"
                           (propertize "Sekcje:" 'face 'font-lock-comment-face)
                           (propertize (format "sek. %s" (mapconcat #'identity sections ", "))
                                       'face 'font-lock-warning-face))))
         (when groups
-          (insert (format "  %-14s %s\n"
+          (insert (format "  %-12s %s\n"
                           (propertize "Grupy:" 'face 'font-lock-comment-face)
                           (mapconcat #'identity groups ", "))))
         (insert "\n")
@@ -309,7 +309,7 @@
         ;; teachers section
         (if teachers-info
             (progn
-              (insert (propertize "Prowadzący (wybierz i naciśnij [Enter] aby otworzyć plan):\n"
+              (insert (propertize "Prowadzący (Enter = otwórz plan):\n"
                                   'face '(:weight bold :underline t)))
               (dolist (tinfo teachers-info)
                 (let* ((tid (plist-get tinfo :id))
@@ -326,18 +326,20 @@
           (insert (propertize "  (Brak informacji o prowadzącym)\n" 'face 'font-lock-comment-face)))
 
         ;; footer
-        (insert "\n" (propertize (make-string 70 ?─) 'face 'font-lock-comment-face) "\n")
-        (insert (propertize "  [q] Zamknij okno    [Enter] Otwórz plan wybranego prowadzącego\n"
+        (insert "\n" (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n")
+        (insert (propertize "  [q] Zamknij okno\n  [Enter] Otwórz plan wybranego prowadzącego\n"
                             'face 'font-lock-comment-face))
         (goto-char (or first-teacher-pos (point-min)))))
 
-    ;; display popup window below timetable
-    (let ((win (display-buffer buf '(display-buffer-below-selected
-                                     display-buffer-pop-up-window
-                                     display-buffer-use-some-window))))
+    ;; display vertical split window on the right side
+    (let ((win (display-buffer buf
+                               '((display-buffer-in-direction
+                                  display-buffer-pop-up-window
+                                  display-buffer-use-some-window)
+                                 (direction . right)
+                                 (window-width . 0.38)))))
       (when win
-        (select-window win)
-        (fit-window-to-buffer win 18 8)))))
+        (select-window win)))))
 
 ;;;###autoload
 (defun plan-polsl-view-show-detail ()
@@ -346,6 +348,16 @@
   (if-let ((entry (get-text-property (point) 'plan-polsl-entry)))
       (plan-polsl-view--display-detail-popup entry)
     (user-error "Kursor nie znajduje się na linii zajęć")))
+
+(defun plan-polsl-view--buffer-name (id type-val meta)
+  "Generate appropriate buffer name for ID, TYPE-VAL, and META."
+  (let ((default-id (bound-and-true-p plan-polsl-id))
+        (title (plist-get meta :title)))
+    (if (and default-id (string-equal (format "%s" id) (format "%s" default-id)))
+        "*Plan PolSL*"
+      (if (and title (> (length title) 0))
+          (format "*Plan PolSL: %s*" title)
+        (format "*Plan PolSL: %s*" id)))))
 
 (defun plan-polsl-view--filter-week-entries (entries monday-time week-cycle)
   "Group ENTRIES into 5 day vectors for the week at MONDAY-TIME and WEEK-CYCLE."
@@ -373,9 +385,10 @@
           (setq max-w (max max-w len)))))
     max-w))
 
-(defun plan-polsl-view--render-buffer (entries meta id type-val monday-time)
-  "Render ENTRIES and META for ID, TYPE-VAL and MONDAY-TIME into `*Plan PolSL*' buffer."
-  (let* ((buf (get-buffer-create "*Plan PolSL*"))
+(defun plan-polsl-view--render-buffer (entries meta id type-val monday-time &optional target-buf)
+  "Render ENTRIES and META for ID, TYPE-VAL and MONDAY-TIME into TARGET-BUF."
+  (let* ((buf-name (or target-buf (plan-polsl-view--buffer-name id type-val meta)))
+         (buf (get-buffer-create buf-name))
          (title (or (plist-get meta :title) (format "ID: %s" id)))
          (path (plist-get meta :path))
          (week-info (plan-polsl-view--week-info monday-time))
@@ -409,6 +422,11 @@
         (let ((inhibit-read-only t))
           (erase-buffer)
           (plan-polsl-mode)
+          (setq plan-polsl-view-id id
+                plan-polsl-view-type type-val
+                plan-polsl-view-entries entries
+                plan-polsl-view-meta meta
+                plan-polsl-view-active-monday monday-time)
 
           ;; header banner
           (when path
@@ -454,7 +472,7 @@
 
 ;;;###autoload
 (defun plan-polsl (&optional id type refresh monday)
-  "Display the PolSL timetable in a dedicated in-memory `*Plan PolSL*' buffer.
+  "Display the PolSL timetable in a dedicated in-memory buffer.
 ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
 If REFRESH is non-nil, forces re-fetching from network.
@@ -469,14 +487,14 @@ MONDAY specifies the active week's Monday (defaults to current week)."
                          (plan-polsl-view--get-monday (current-time)))))
     (when (string-blank-p target-id)
       (user-error "Nie podano identyfikatora planu"))
-    (setq plan-polsl-view-active-monday active-mon)
     (if (and (not refresh)
-             plan-polsl-cached-entries
-             (string-equal (format "%s" plan-polsl-cached-id) (format "%s" target-id))
-             (equal plan-polsl-cached-type target-type))
-        (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
-                                                   plan-polsl-cached-meta
-                                                   target-id target-type active-mon)))
+             plan-polsl-view-entries
+             (string-equal (format "%s" plan-polsl-view-id) (format "%s" target-id))
+             (equal plan-polsl-view-type target-type))
+        (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                                   plan-polsl-view-meta
+                                                   target-id target-type active-mon
+                                                   (buffer-name))))
           (plan-polsl-view--display-window buf))
       (message "Pobieranie planu z plan.polsl.pl (ID: %s)..." target-id)
       (let* ((html (plan-polsl-http-fetch-schedule target-id target-type))
@@ -484,70 +502,69 @@ MONDAY specifies the active week's Monday (defaults to current week)."
              (entries (plan-polsl-parser-parse-entries html)))
         (unless entries
           (user-error "Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id))
-        (setq plan-polsl-cached-entries entries
-              plan-polsl-cached-meta meta
-              plan-polsl-cached-id target-id
-              plan-polsl-cached-type target-type)
         (let ((buf (plan-polsl-view--render-buffer entries meta target-id target-type active-mon)))
           (plan-polsl-view--display-window buf)
           (message "Wyświetlono plan PolSL (%d zajęć)" (length entries)))))))
 
 ;;;###autoload
 (defun plan-polsl-refresh ()
-  "Force re-fetch timetable from network and update `*Plan PolSL*' buffer."
+  "Force re-fetch timetable from network and update current buffer."
   (interactive)
-  (plan-polsl (or plan-polsl-cached-id (bound-and-true-p plan-polsl-id))
-              (or plan-polsl-cached-type (bound-and-true-p plan-polsl-type) 0)
+  (plan-polsl (or plan-polsl-view-id (bound-and-true-p plan-polsl-id))
+              (or plan-polsl-view-type (bound-and-true-p plan-polsl-type) 0)
               t
               plan-polsl-view-active-monday))
 
 ;;;###autoload
 (defun plan-polsl-current-week ()
-  "Reset timetable view to the current academic week in `*Plan PolSL*' buffer."
+  "Reset timetable view to the current academic week."
   (interactive)
-  (unless plan-polsl-cached-entries
+  (unless plan-polsl-view-entries
     (user-error "Brak załadowanego planu"))
   (let ((current-mon (plan-polsl-view--get-monday (current-time))))
     (setq plan-polsl-view-active-monday current-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
-                                               plan-polsl-cached-meta
-                                               plan-polsl-cached-id
-                                               plan-polsl-cached-type
-                                               current-mon)))
+    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                               plan-polsl-view-meta
+                                               plan-polsl-view-id
+                                               plan-polsl-view-type
+                                               current-mon
+                                               (buffer-name))))
       (plan-polsl-view--display-window buf))))
 
 ;;;###autoload
 (defun plan-polsl-prev-week ()
-  "Navigate to previous week in `*Plan PolSL*' buffer."
+  "Navigate to previous week in current timetable buffer."
   (interactive)
-  (unless plan-polsl-cached-entries
+  (unless plan-polsl-view-entries
     (user-error "Brak załadowanego planu"))
   (let ((prev-mon (time-subtract (or plan-polsl-view-active-monday
                                      (plan-polsl-view--get-monday (current-time)))
                                  (days-to-time 7))))
     (setq plan-polsl-view-active-monday prev-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
-                                               plan-polsl-cached-meta
-                                               plan-polsl-cached-id
-                                               plan-polsl-cached-type
-                                               prev-mon)))
+    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                               plan-polsl-view-meta
+                                               plan-polsl-view-id
+                                               plan-polsl-view-type
+                                               prev-mon
+                                               (buffer-name))))
       (plan-polsl-view--display-window buf))))
 
 ;;;###autoload
 (defun plan-polsl-next-week ()
-  "Navigate to next week in `*Plan PolSL*' buffer."
+  "Navigate to next week in current timetable buffer."
   (interactive)
-  (unless plan-polsl-cached-entries
+  (unless plan-polsl-view-entries
     (user-error "Brak załadowanego planu"))
   (let ((next-mon (time-add (or plan-polsl-view-active-monday
                                 (plan-polsl-view--get-monday (current-time)))
                             (days-to-time 7))))
     (setq plan-polsl-view-active-monday next-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-cached-entries
-                                               plan-polsl-cached-meta
-                                               plan-polsl-cached-id
-                                               plan-polsl-cached-type
-                                               next-mon)))
+    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                               plan-polsl-view-meta
+                                               plan-polsl-view-id
+                                               plan-polsl-view-type
+                                               next-mon
+                                               (buffer-name))))
       (plan-polsl-view--display-window buf))))
 
 (provide 'plan-polsl-view)
