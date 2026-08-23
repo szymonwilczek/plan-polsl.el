@@ -98,14 +98,15 @@ Configure the package parameters directly in your Emacs configuration:
 
 ** Keybindings in ~*Plan PolSL*~ Buffer
 
-| Key | Action                                    |
-|-----+-------------------------------------------|
-| ~r~ | Refresh schedule from server              |
-| ~t~ | Reset view to current academic week       |
-| ~<~ | Navigate to previous week                 |
-| ~>~ | Navigate to next week                     |
-| ~s~ | Synchronize with Org-Agenda               |
-| ~q~ | Close buffer window                       |
+| Key | Action                                                |
+|-----+-------------------------------------------------------|
+| ~r~   | Refresh schedule from server                          |
+| ~t~   | Reset view to current academic week                   |
+| ~<~   | Navigate to previous week                             |
+| ~>~   | Navigate to next week                                 |
+| ~RET~ | Open course details popup & instructor timetable jump |
+| ~s~   | Synchronize with Org-Agenda                           |
+| ~q~   | Close buffer window                                   |
 
 ** Author & License
 

@@ -5,7 +5,7 @@
 
 ;;; Commentary:
 ;; Parses plan.polsl.pl HTML course divs, extracts absolute geometry coordinates,
-;; and maps them to academic timetable slots, days, and metadata.
+;; maps them to academic timetable slots, and extracts full course titles & teachers.
 
 ;;; Code:
 
@@ -84,7 +84,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
    (t 5)))            ; Piątek
 
 (defun plan-polsl-parser--detect-cycle (width left)
-  "Determine recurrence cycle ('weekly, 'odd, or 'even) based on WIDTH and LEFT."
+  "Determine recurrence cycle (`weekly', `odd', or `even') based on WIDTH and LEFT."
   (if (> width 200)
       'weekly
     (let ((col-offset (mod (- left plan-polsl-parser-grid-origin-left)
@@ -92,7 +92,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
       (if (< col-offset 120) 'odd 'even))))
 
 (defun plan-polsl-parser--extract-sections (text)
-  "Extract lab/group section numbers from TEXT (e.g. \"sek.10,11\" -> '(\"10\" \"11\"))."
+  "Extract lab/group section numbers from TEXT (e.g. \"sek.10,11\" -> \\='(\"10\" \"11\"))."
   (if (string-match "(sek\\.?[ \t\n]*\\([0-9, ]+\\))" (or text ""))
       (split-string (match-string 1 text) "[, ]+" t)
     nil))
@@ -136,6 +136,46 @@ If DEFAULT is a number, returns integer; otherwise returns string."
                           (string-trim (dom-texts a)))))
                     (dom-by-tag div 'a))))
 
+(defun plan-polsl-parser--extract-teachers-info (div)
+  "Extract structured list of (:id ID :initials INITIALS) for teachers in DIV."
+  (delq nil (mapcar (lambda (a)
+                      (let ((href (or (dom-attr a 'href) ""))
+                            (initials (string-trim (dom-texts a))))
+                        (when (and (string-match "type=10&id=\\([0-9]+\\)" href)
+                                   (> (length initials) 0))
+                          (list :id (match-string 1 href)
+                                :initials initials))))
+                    (dom-by-tag div 'a))))
+
+(defun plan-polsl-parser--extract-legend (html)
+  "Extract legend mapping abbreviation to full course name from HTML."
+  (let ((legend nil)
+        (pos 0))
+    (while (string-match "<strong>\\([^<]+\\)</strong>[ \t\n]*-[ \t\n]*\\([^<]+\\)" html pos)
+      (let* ((abbrev (string-trim (match-string 1 html)))
+             (raw-full (string-trim (match-string 2 html)))
+             (clean-full (replace-regexp-in-string ",[ \t\n]*\\*-[ \t\n]*obieralny.*" "" raw-full))
+             (clean-full (replace-regexp-in-string "^\\*+[ \t\n]*" "" clean-full))
+             (clean-full (replace-regexp-in-string ",[ \t\n]*Zajęcia wg.*" "" clean-full))
+             (end (match-end 0)))
+        (push (cons abbrev (string-trim clean-full)) legend)
+        (setq pos end)))
+    (nreverse legend)))
+
+(defun plan-polsl-parser--match-full-title (raw-text title legend)
+  "Match RAW-TEXT or TITLE against LEGEND dictionary to find unabbreviated title."
+  (or (cl-some (lambda (pair)
+                 (when (string-prefix-p (car pair) raw-text)
+                   (cdr pair)))
+               legend)
+      (cl-some (lambda (pair)
+                 (let ((clean-k (replace-regexp-in-string "^\\*+[ \t\n]*" "" (car pair))))
+                   (setq clean-k (car (split-string clean-k "[(,]" t)))
+                   (when (string-equal (string-trim clean-k) (string-trim title))
+                     (cdr pair))))
+               legend)
+      title))
+
 (defun plan-polsl-parser-extract-metadata (html)
   "Extract schedule title and faculty path from HTML."
   (let ((title nil)
@@ -158,6 +198,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
   (let* ((dom (with-temp-buffer
                 (insert html)
                 (libxml-parse-html-region (point-min) (point-max))))
+         (legend (plan-polsl-parser--extract-legend html))
          (divs (dom-by-class dom "^coursediv$"))
          (entries nil))
     (dolist (div divs)
@@ -174,6 +215,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
                  (dates (plan-polsl-parser--extract-dates trimmed))
                  (groups (delete-dups (plan-polsl-parser--extract-links div "type=0\\|type=1\\b")))
                  (teachers (delete-dups (plan-polsl-parser--extract-links div "type=10")))
+                 (teachers-info (plan-polsl-parser--extract-teachers-info div))
                  (rooms (delete-dups (plan-polsl-parser--extract-links div "type=20")))
                  (time-pair (plan-polsl-parser--coords-to-time top height))
                  (day-idx (plan-polsl-parser--coords-to-day left))
@@ -181,12 +223,14 @@ If DEFAULT is a number, returns integer; otherwise returns string."
                  (sections (plan-polsl-parser--extract-sections trimmed))
                  (class-type (plan-polsl-parser--detect-type trimmed bg))
                  (biweekly (or (eq cycle 'odd) (eq cycle 'even) (string-match-p "\\*\\s*[A-Za-z]" trimmed)))
-                 (title (plan-polsl-parser--clean-title trimmed)))
+                 (title (plan-polsl-parser--clean-title trimmed))
+                 (full-title (plan-polsl-parser--match-full-title trimmed title legend)))
             (push (list :day-index day-idx
                         :day-name day-name
                         :start-time (car time-pair)
                         :end-time (cdr time-pair)
                         :title title
+                        :full-title full-title
                         :type class-type
                         :sections sections
                         :biweekly (and biweekly t)
@@ -194,6 +238,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
                         :dates dates
                         :groups groups
                         :teachers teachers
+                        :teachers-info teachers-info
                         :rooms rooms
                         :raw-text trimmed
                         :top top
