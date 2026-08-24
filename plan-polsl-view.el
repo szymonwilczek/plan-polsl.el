@@ -94,6 +94,25 @@
     map)
   "Keymap for `plan-polsl-mode'.")
 
+(define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
+  "Major mode for browsing PolSL university timetables."
+  (setq buffer-read-only t)
+  (setq truncate-lines t))
+
+(defvar plan-polsl-detail-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "q") #'plan-polsl-detail-quit)
+    (define-key map (kbd "RET") #'plan-polsl-detail-open-target)
+    (define-key map (kbd "<return>") #'plan-polsl-detail-open-target)
+    (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-target)
+    map)
+  "Keymap for `plan-polsl-detail-mode'.")
+
+(define-derived-mode plan-polsl-detail-mode special-mode "Plan-PolSL:Szczegóły"
+  "Major mode for inspecting class details in a vertical split window."
+  (setq buffer-read-only t)
+  (setq truncate-lines t))
+
 (with-eval-after-load 'evil
   (if (fboundp 'evil-define-key*)
       (progn
@@ -117,25 +136,6 @@
           "q" #'plan-polsl-detail-quit
           (kbd "RET") #'plan-polsl-detail-open-target
           (kbd "<return>") #'plan-polsl-detail-open-target))))
-
-(define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
-  "Major mode for browsing PolSL university timetables."
-  (setq buffer-read-only t)
-  (setq truncate-lines t))
-
-(defvar plan-polsl-detail-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "q") #'plan-polsl-detail-quit)
-    (define-key map (kbd "RET") #'plan-polsl-detail-open-target)
-    (define-key map (kbd "<return>") #'plan-polsl-detail-open-target)
-    (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-target)
-    map)
-  "Keymap for `plan-polsl-detail-mode'.")
-
-(define-derived-mode plan-polsl-detail-mode special-mode "Plan-PolSL:Szczegóły"
-  "Major mode for inspecting class details in a vertical split window."
-  (setq buffer-read-only t)
-  (setq truncate-lines t))
 
 (defun plan-polsl-detail-quit ()
   "Close detail popup window without quitting the main timetable buffer."
