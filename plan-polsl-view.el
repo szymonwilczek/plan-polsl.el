@@ -116,7 +116,7 @@
 (with-eval-after-load 'evil
   (if (fboundp 'evil-define-key*)
       (progn
-        (evil-define-key* '(normal visual motion) 'plan-polsl-mode-map
+        (evil-define-key* '(normal visual motion) plan-polsl-mode-map
           "q" #'quit-window
           "r" #'plan-polsl-refresh
           "s" #'plan-polsl-sync
@@ -132,7 +132,7 @@
           (kbd "<return>") #'plan-polsl-view-show-detail
           "?" #'plan-polsl-help
           "h" #'plan-polsl-help)
-        (evil-define-key* '(normal visual motion) 'plan-polsl-detail-mode-map
+        (evil-define-key* '(normal visual motion) plan-polsl-detail-mode-map
           "q" #'plan-polsl-detail-quit
           (kbd "RET") #'plan-polsl-detail-open-target
           (kbd "<return>") #'plan-polsl-detail-open-target))))
