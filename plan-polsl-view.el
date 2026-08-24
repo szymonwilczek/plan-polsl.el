@@ -95,22 +95,28 @@
   "Keymap for `plan-polsl-mode'.")
 
 (with-eval-after-load 'evil
-  (evil-define-key '(normal visual motion) plan-polsl-mode-map
-    "q" #'quit-window
-    "r" #'plan-polsl-refresh
-    "s" #'plan-polsl-sync
-    "t" #'plan-polsl-current-week
-    "w" #'plan-polsl-goto-week
-    "<" #'plan-polsl-prev-week
-    ">" #'plan-polsl-next-week
-    (kbd "TAB") #'plan-polsl-next-entry
-    (kbd "<tab>") #'plan-polsl-next-entry
-    (kbd "<backtab>") #'plan-polsl-prev-entry
-    (kbd "S-TAB") #'plan-polsl-prev-entry
-    (kbd "RET") #'plan-polsl-view-show-detail
-    (kbd "<return>") #'plan-polsl-view-show-detail
-    "?" #'plan-polsl-help
-    "h" #'plan-polsl-help))
+  (if (fboundp 'evil-define-key*)
+      (progn
+        (evil-define-key* '(normal visual motion) plan-polsl-mode-map
+          "q" #'quit-window
+          "r" #'plan-polsl-refresh
+          "s" #'plan-polsl-sync
+          "t" #'plan-polsl-current-week
+          "w" #'plan-polsl-goto-week
+          "<" #'plan-polsl-prev-week
+          ">" #'plan-polsl-next-week
+          (kbd "TAB") #'plan-polsl-next-entry
+          (kbd "<tab>") #'plan-polsl-next-entry
+          (kbd "<backtab>") #'plan-polsl-prev-entry
+          (kbd "S-TAB") #'plan-polsl-prev-entry
+          (kbd "RET") #'plan-polsl-view-show-detail
+          (kbd "<return>") #'plan-polsl-view-show-detail
+          "?" #'plan-polsl-help
+          "h" #'plan-polsl-help)
+        (evil-define-key* '(normal visual motion) plan-polsl-detail-mode-map
+          "q" #'plan-polsl-detail-quit
+          (kbd "RET") #'plan-polsl-detail-open-target
+          (kbd "<return>") #'plan-polsl-detail-open-target))))
 
 (define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
   "Major mode for browsing PolSL university timetables."
@@ -125,12 +131,6 @@
     (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-target)
     map)
   "Keymap for `plan-polsl-detail-mode'.")
-
-(with-eval-after-load 'evil
-  (evil-define-key '(normal visual motion) plan-polsl-detail-mode-map
-    "q" #'plan-polsl-detail-quit
-    (kbd "RET") #'plan-polsl-detail-open-target
-    (kbd "<return>") #'plan-polsl-detail-open-target))
 
 (define-derived-mode plan-polsl-detail-mode special-mode "Plan-PolSL:Szczegóły"
   "Major mode for inspecting class details in a vertical split window."
