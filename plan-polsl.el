@@ -2,7 +2,7 @@
 
 ;; Author: Szymon Wilczek
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "28.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: calendar, convenience, polsl, schedule, org
 ;; URL: https://github.com/szymonwilczek/plan-polsl.el
 

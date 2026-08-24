@@ -7,7 +7,7 @@
 #+HTML: <div align="center">
 #+HTML:   <img src="assets/screenshot.png" alt="plan-polsl preview" width="90%"/>
 #+HTML:   <br/><br/>
-#+HTML:   <a href="https://www.gnu.org/software/emacs/"><img src="https://img.shields.io/badge/Emacs-28.1+-blueviolet.svg?style=flat-square&logo=gnu-emacs&logoColor=white" alt="Emacs 28.1+"/></a>
+#+HTML:   <a href="https://www.gnu.org/software/emacs/"><img src="https://img.shields.io/badge/Emacs-29.1+-blueviolet.svg?style=flat-square&logo=gnu-emacs&logoColor=white" alt="Emacs 29.1+"/></a>
 #+HTML:   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square" alt="License GPLv3"/></a>
 #+HTML: </div>
 
