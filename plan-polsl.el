@@ -1,7 +1,7 @@
 ;;; plan-polsl.el --- Silesian University of Technology schedule integration -*- lexical-binding: t; -*-
 
 ;; Author: Szymon Wilczek
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: calendar, convenience, polsl, schedule, org
 ;; URL: https://github.com/szymonwilczek/plan-polsl.el
