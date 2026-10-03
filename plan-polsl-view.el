@@ -385,7 +385,7 @@
 (defun plan-polsl-view-show-detail ()
   "Show interactive detail popup window for the class entry at point."
   (interactive)
-  (if-let ((entry (get-text-property (point) 'plan-polsl-entry)))
+  (if-let* ((entry (get-text-property (point) 'plan-polsl-entry)))
       (plan-polsl-view--display-detail-popup entry)
     (user-error "Kursor nie znajduje się na linii zajęć")))
 
