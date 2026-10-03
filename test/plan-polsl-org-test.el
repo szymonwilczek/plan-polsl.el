@@ -15,5 +15,11 @@
     (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00" t)
                    "<2026-10-05 pon 08:30-10:00 +2w>"))))
 
+(ert-deftest plan-polsl-org-test-date-timestamp ()
+  (should (equal (plan-polsl-org--format-date-timestamp "2026-10-05" 1 "08:30" "10:00")
+                 "<2026-10-05 pon 08:30-10:00>"))
+  (should (equal (plan-polsl-org--format-date-timestamp "2026-10-10" 6 "09:00" "12:00")
+                 "<2026-10-10 sob 09:00-12:00>")))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

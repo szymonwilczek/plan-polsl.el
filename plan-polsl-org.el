@@ -15,7 +15,7 @@
 (defvar org-agenda-files)
 
 (defconst plan-polsl-org-day-abbrevs
-  ["pon" "wto" "śro" "czw" "pią"]
+  ["pon" "wto" "śro" "czw" "pią" "sob" "nie"]
   "Short day of week names used in Org active timestamps.")
 
 (defun plan-polsl-org--auto-semester-monday ()
@@ -65,6 +65,13 @@ Otherwise, auto-computes the appropriate semester start date."
          (repeat (if biweekly "+2w" "+1w")))
     (format "<%04d-%02d-%02d %s %s-%s %s>"
             year month day day-abbrev start-time end-time repeat)))
+
+(defun plan-polsl-org--format-date-timestamp (date day-index start-time end-time)
+  "Format a non-repeating active Org timestamp.
+DATE is \"YYYY-MM-DD\", DAY-INDEX the ISO weekday (1=Mon .. 7=Sun),
+START-TIME and END-TIME are \"hh:mm\" strings."
+  (format "<%s %s %s-%s>"
+          date (aref plan-polsl-org-day-abbrevs (1- day-index)) start-time end-time))
 
 (defun plan-polsl-org--type-to-tag (type-str)
   "Convert class TYPE-STR to a clean Org tag."
