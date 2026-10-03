@@ -55,6 +55,14 @@ The file is created with permissions 0600. Use a name ending in
   :type 'file
   :group 'plan-polsl-usos)
 
+(defcustom plan-polsl-usos-default t
+  "When non-nil, `plan-polsl' shows the USOS timetable once logged in.
+Logged in means a consumer key is configured and an access token is
+stored (see `plan-polsl-usos-login'). When nil, the USOS timetable is
+only shown by the explicit `plan-polsl-usos' command."
+  :type 'boolean
+  :group 'plan-polsl-usos)
+
 (defcustom plan-polsl-usos-language "pl"
   "Preferred language code for names returned by USOS API."
   :type '(choice (const :tag "Polski" "pl")

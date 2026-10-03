@@ -602,13 +602,18 @@
 ;;;###autoload
 (defun plan-polsl (&optional id type refresh monday)
   "Display the PolSL timetable in a dedicated in-memory buffer.
+When called without ID and TYPE while logged in to USOS, shows the
+personal USOS timetable (see `plan-polsl-usos-default').
 ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
 TYPE `usos' shows the personal USOS timetable via `plan-polsl-usos'.
 If REFRESH is non-nil, forces re-fetching from network.
 MONDAY specifies the active week's Monday (defaults to current week)."
   (interactive "P")
-  (if (eq type 'usos)
+  (if (or (eq type 'usos)
+          (and (null id) (null type)
+               plan-polsl-usos-default
+               (plan-polsl-usos-logged-in-p)))
       (plan-polsl-usos refresh monday)
     (plan-polsl-view--open-polsl id type refresh monday)))
 
