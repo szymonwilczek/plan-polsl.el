@@ -10,9 +10,12 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'time-date)
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
 (require 'plan-polsl-org)
+(require 'plan-polsl-usos)
+(require 'plan-polsl-view)
 
 ;;;###autoload
 (defun plan-polsl-sync (&optional id type)
@@ -42,6 +45,33 @@ TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
              (length all-entries)
              (abbreviate-file-name target-file))
     (length all-entries)))
+
+;;;###autoload
+(defun plan-polsl-usos-sync (&optional weeks)
+  "Export the personal USOS timetable into the Org schedule file.
+Fetches WEEKS weeks (default `plan-polsl-usos-sync-weeks') starting
+with the current one and writes them as dated entries to
+`plan-polsl-target-file'. Returns the number of exported classes."
+  (interactive)
+  (unless (plan-polsl-usos-logged-in-p)
+    (user-error "Nie jesteś zalogowany do USOS (M-x plan-polsl-usos-login)"))
+  (let* ((count (or weeks plan-polsl-usos-sync-weeks))
+         (monday (plan-polsl-view--get-monday (current-time)))
+         (entries nil))
+    (dotimes (i count)
+      (message "Pobieranie planu z USOS (tydzień %d/%d)..." (1+ i) count)
+      (setq entries (append entries
+                            (plan-polsl-usos-fetch-week
+                             (time-add monday (days-to-time (* 7 i)))))))
+    (let ((target-file (or (bound-and-true-p plan-polsl-target-file)
+                           (expand-file-name "plan-polsl.org" user-emacs-directory))))
+      (plan-polsl-org-write-to-file
+       (plan-polsl-org-generate-dated-document
+        entries (plist-get (plan-polsl-usos--load-token) :user-name))
+       target-file)
+      (message "Zsynchronizowano plan z USOS! Zapisano %d zajęć w %s"
+               (length entries) (abbreviate-file-name target-file))
+      (length entries))))
 
 ;;;###autoload
 (defun plan-polsl-open-plan ()

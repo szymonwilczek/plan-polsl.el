@@ -80,5 +80,30 @@
   (should (string-match-p "Brak zaplanowanych zajęć"
                           (plan-polsl-org-generate-dated-document nil))))
 
+(ert-deftest plan-polsl-org-test-usos-sync ()
+  (let* ((dir (make-temp-file "plan-polsl-org" t))
+         (plan-polsl-target-file (expand-file-name "plan.org" dir))
+         (plan-polsl-auto-add-to-agenda nil)
+         (weeks nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'always)
+                  ((symbol-function 'plan-polsl-usos--load-token)
+                   (lambda () '(:user-name "Jan Kowalski")))
+                  ((symbol-function 'plan-polsl-usos-fetch-week)
+                   (lambda (monday)
+                     (push (format-time-string "%F" monday) weeks)
+                     (list (list :day-index 1 :date (format-time-string "%F" monday)
+                                 :start-time "08:30" :end-time "10:00"
+                                 :title "AiR" :type "Wykład" :cycle 'weekly)))))
+          (should (= (plan-polsl-usos-sync 3) 3))
+          (should (= (length weeks) 3))
+          (should (equal (car (last weeks))
+                         (format-time-string "%F" (plan-polsl-view--get-monday (current-time)))))
+          (with-temp-buffer
+            (insert-file-contents plan-polsl-target-file)
+            (should (search-forward "Jan Kowalski" nil t))
+            (should (= (count-matches "^\\*\\* AiR" (point-min) (point-max)) 3))))
+      (delete-directory dir t))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

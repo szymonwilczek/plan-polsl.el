@@ -63,6 +63,12 @@ only shown by the explicit `plan-polsl-usos' command."
   :type 'boolean
   :group 'plan-polsl-usos)
 
+(defcustom plan-polsl-usos-sync-weeks 16
+  "Number of weeks, starting with the current one, exported by Org sync.
+Each week costs one USOS API request."
+  :type 'integer
+  :group 'plan-polsl-usos)
+
 (defcustom plan-polsl-usos-language "pl"
   "Preferred language code for names returned by USOS API."
   :type '(choice (const :tag "Polski" "pl")
