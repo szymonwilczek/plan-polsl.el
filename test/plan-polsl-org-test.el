@@ -105,5 +105,19 @@
             (should (= (count-matches "^\\*\\* AiR" (point-min) (point-max)) 3))))
       (delete-directory dir t))))
 
+(ert-deftest plan-polsl-org-test-sync-dispatch ()
+  (let ((called nil)
+        (plan-polsl-usos-default t))
+    (cl-letf (((symbol-function 'plan-polsl-usos-sync) (lambda (&rest _) (setq called 'usos)))
+              ((symbol-function 'plan-polsl--sync-polsl) (lambda (&rest _) (setq called 'polsl))))
+      (cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'always))
+        (plan-polsl-sync)
+        (should (eq called 'usos))
+        (plan-polsl-sync "343266256" 0)
+        (should (eq called 'polsl)))
+      (cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'ignore))
+        (plan-polsl-sync)
+        (should (eq called 'polsl))))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

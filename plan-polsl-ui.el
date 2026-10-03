@@ -20,9 +20,19 @@
 ;;;###autoload
 (defun plan-polsl-sync (&optional id type)
   "Fetch and synchronize timetable for ID and TYPE into Org-mode.
+When called without ID and TYPE while logged in to USOS, exports the
+USOS timetable with `plan-polsl-usos-sync' (see `plan-polsl-usos-default').
 ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
   (interactive)
+  (if (and (null id) (null type)
+           plan-polsl-usos-default
+           (plan-polsl-usos-logged-in-p))
+      (plan-polsl-usos-sync)
+    (plan-polsl--sync-polsl id type)))
+
+(defun plan-polsl--sync-polsl (id type)
+  "Synchronize the plan.polsl.pl timetable for ID and TYPE into Org-mode."
   (let* ((target-id (or id
                         (bound-and-true-p plan-polsl-id)
                         (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
