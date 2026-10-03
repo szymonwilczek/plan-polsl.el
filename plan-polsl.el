@@ -3,7 +3,7 @@
 ;; Author: Szymon Wilczek
 ;; Version: 0.2.1
 ;; Package-Requires: ((emacs "29.1"))
-;; Keywords: calendar, convenience, polsl, schedule, org
+;; Keywords: calendar, convenience, polsl, schedule, org, usos
 ;; URL: https://github.com/szymonwilczek/plan-polsl.el
 
 ;;; Commentary:
@@ -13,6 +13,12 @@
 ;; Fetches class schedules from https://plan.polsl.pl/ for student groups,
 ;; academic teachers, and rooms. Displays formatted timetables in a dedicated
 ;; in-memory buffer and synchronizes recurring schedules with Org-Agenda.
+;;
+;; Optionally integrates with the university's USOS API
+;; (https://usosapi.polsl.pl/): after `plan-polsl-usos-login' the personal
+;; USOS timetable becomes the default for `plan-polsl' and
+;; `plan-polsl-sync'. Users register their own USOS API consumer key; no
+;; credentials ship with the package.
 
 ;;; Code:
 
