@@ -81,6 +81,9 @@ When nil, the width of the window showing the timetable is used."
 (defvar-local plan-polsl-view-active-monday nil
   "Buffer-local active Monday timestamp for week navigation.")
 
+(defvar-local plan-polsl-view--rendered-width nil
+  "Column limit the timetable in this buffer was last rendered for.")
+
 (defvar plan-polsl-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'quit-window)
@@ -105,7 +108,32 @@ When nil, the width of the window showing the timetable is used."
 (define-derived-mode plan-polsl-mode special-mode "Plan-PolSL"
   "Major mode for browsing PolSL university timetables."
   (setq buffer-read-only t)
-  (setq truncate-lines t))
+  (setq truncate-lines t)
+  (add-hook 'window-size-change-functions #'plan-polsl-view--on-resize nil t))
+
+(defun plan-polsl-view--on-resize (window)
+  "Render the timetable in WINDOW again when its width changed."
+  (with-current-buffer (window-buffer window)
+    (when (and plan-polsl-view-active-monday
+               (not plan-polsl-view-width)
+               plan-polsl-view--rendered-width
+               (/= plan-polsl-view--rendered-width
+                   (plan-polsl-view--width (current-buffer))))
+      (let ((line (line-number-at-pos))
+            (col (current-column))
+            (start (line-number-at-pos (window-start window))))
+        (plan-polsl-view--render-buffer
+         plan-polsl-view-entries plan-polsl-view-meta plan-polsl-view-id
+         plan-polsl-view-type plan-polsl-view-active-monday (current-buffer))
+        (goto-char (point-min))
+        (forward-line (1- line))
+        (move-to-column col)
+        (set-window-point window (point))
+        (set-window-start window (save-excursion
+                                   (goto-char (point-min))
+                                   (forward-line (1- start))
+                                   (point))
+                          t)))))
 
 (defvar plan-polsl-detail-mode-map
   (let ((map (make-sparse-keymap)))
@@ -581,7 +609,8 @@ glyph."
                 plan-polsl-view-type type-val
                 plan-polsl-view-entries entries
                 plan-polsl-view-meta meta
-                plan-polsl-view-active-monday monday-time)
+                plan-polsl-view-active-monday monday-time
+                plan-polsl-view--rendered-width width)
 
           ;; header banner
           (when path

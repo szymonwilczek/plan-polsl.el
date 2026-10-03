@@ -237,6 +237,21 @@
     (dolist (l (cdr lines))
       (should (string-blank-p (substring l 0 bar))))))
 
+(ert-deftest plan-polsl-view-test-rerender-on-resize ()
+  (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                     (save-window-excursion
+                                       (switch-to-buffer (current-buffer))
+                                       (let ((width plan-polsl-view--rendered-width))
+                                         (should (memq #'plan-polsl-view--on-resize window-size-change-functions))
+                                         ;; pretend it was rendered for another width
+                                         (setq plan-polsl-view--rendered-width 30)
+                                         (forward-line 5)
+                                         (let ((line (line-number-at-pos)))
+                                           (plan-polsl-view--on-resize (selected-window))
+                                           (should (= plan-polsl-view--rendered-width width))
+                                           (should (= (line-number-at-pos) line))
+                                           (should (search-forward "PSy" nil t)))))))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))
