@@ -12,6 +12,7 @@
 (require 'time-date)
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
+(require 'plan-polsl-usos)
 
 ;; external references for clean byte-compilation
 (declare-function evil-define-key "evil-core")
@@ -592,7 +593,7 @@
   (cl-find-if (lambda (buf)
                 (with-current-buffer buf
                   (and (derived-mode-p 'plan-polsl-mode)
-                       plan-polsl-view-entries
+                       (or plan-polsl-view-entries (eq plan-polsl-view-type 'usos))
                        (string-equal (format "%s" (or plan-polsl-view-id ""))
                                      (format "%s" target-id))
                        (equal plan-polsl-view-type target-type))))
@@ -643,14 +644,81 @@ MONDAY specifies the active week's Monday (defaults to current week)."
 (defun plan-polsl-view--show-week (monday)
   "Re-render the current timetable buffer for the week starting at MONDAY."
   (plan-polsl-view--require-plan)
-  (setq plan-polsl-view-active-monday monday)
-  (plan-polsl-view--display-window
-   (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                   plan-polsl-view-meta
-                                   plan-polsl-view-id
-                                   plan-polsl-view-type
-                                   monday
-                                   (buffer-name))))
+  (if (eq plan-polsl-view-type 'usos)
+      (plan-polsl-view--usos-show-week (current-buffer) monday)
+    (setq plan-polsl-view-active-monday monday)
+    (plan-polsl-view--display-window
+     (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                     plan-polsl-view-meta
+                                     plan-polsl-view-id
+                                     plan-polsl-view-type
+                                     monday
+                                     (buffer-name)))))
+
+(defun plan-polsl-view--week-key (monday)
+  "Return the cache key of the week starting at MONDAY."
+  (format-time-string "%Y-%m-%d" monday))
+
+(defun plan-polsl-view--usos-meta ()
+  "Return fresh metadata for a USOS timetable buffer.
+The :weeks hash table caches fetched entries per week."
+  (list :title (or (plist-get (plan-polsl-usos--load-token) :user-name)
+                   "Mój plan")
+        :path "USOS Politechniki Śląskiej"
+        :weeks (make-hash-table :test #'equal)))
+
+(defun plan-polsl-view--usos-report-error (err)
+  "Show a message describing USOS fetch error ERR."
+  (message "plan-polsl: %s%s"
+           (plan-polsl-usos-error-message err)
+           (if (eq (car err) 'plan-polsl-usos-unauthorized)
+               " - zaloguj się ponownie: M-x plan-polsl-usos-login"
+             "")))
+
+(defun plan-polsl-view--usos-show-week (buf-or-name monday &optional meta)
+  "Show USOS week starting at MONDAY in BUF-OR-NAME, fetching it if needed.
+META defaults to the metadata of the existing buffer; its :weeks table
+caches entries so revisiting a week needs no network request."
+  (let* ((buf (get-buffer buf-or-name))
+         (meta (or meta
+                   (and buf (buffer-local-value 'plan-polsl-view-meta buf))
+                   (plan-polsl-view--usos-meta)))
+         (weeks (plist-get meta :weeks))
+         (key (plan-polsl-view--week-key monday))
+         (name (if (bufferp buf-or-name) (buffer-name buf-or-name) buf-or-name))
+         (show (lambda (entries)
+                 (plan-polsl-view--display-window
+                  (plan-polsl-view--render-buffer entries meta "usos" 'usos
+                                                  monday name)))))
+    (pcase (gethash key weeks 'missing)
+      ('missing
+       (message "Pobieranie planu z USOS (tydzień od %s)..."
+                (format-time-string "%d.%m.%Y" monday))
+       (plan-polsl-usos-fetch-week-async
+        monday
+        (lambda (entries)
+          (puthash key entries weeks)
+          (funcall show entries)
+          (message "Wyświetlono plan z USOS (%d zajęć w tygodniu)" (length entries)))
+        #'plan-polsl-view--usos-report-error))
+      (entries (funcall show entries)))))
+
+;;;###autoload
+(defun plan-polsl-usos (&optional refresh monday)
+  "Display the personal timetable from USOS in a dedicated buffer.
+Requires logging in first with `plan-polsl-usos-login'. If REFRESH is
+non-nil, drop cached weeks and fetch again. MONDAY specifies the week
+to show (defaults to the current week)."
+  (interactive)
+  (unless (plan-polsl-usos-logged-in-p)
+    (user-error "Nie jesteś zalogowany do USOS (M-x plan-polsl-usos-login)"))
+  (let ((monday (or monday (plan-polsl-view--get-monday (current-time))))
+        (live-buf (plan-polsl-view--find-live-buffer "usos" 'usos)))
+    (if (and live-buf (not refresh))
+        (plan-polsl-view--display-window live-buf)
+      (plan-polsl-view--usos-show-week (plan-polsl-view--buffer-name "usos" 'usos nil)
+                                       monday
+                                       (plan-polsl-view--usos-meta)))))
 
 ;;;###autoload
 (defun plan-polsl-refresh ()

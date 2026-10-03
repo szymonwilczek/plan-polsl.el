@@ -94,6 +94,54 @@
     (should (equal (plan-polsl-view--buffer-name "9" 0 '(:title "Sala 301"))
                    "*Plan PolSL: Sala 301*"))))
 
+(defmacro plan-polsl-view-test--with-usos (fetched &rest body)
+  "Run BODY logged in to a stubbed USOS; FETCHED collects fetched weeks."
+  (declare (indent 1))
+  `(cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'always)
+             ((symbol-function 'plan-polsl-usos--load-token)
+              (lambda () '(:token "t" :secret "s" :user-name "Jan Kowalski")))
+             ((symbol-function 'plan-polsl-view--display-window) #'ignore)
+             ((symbol-function 'plan-polsl-usos-fetch-week-async)
+              (lambda (monday callback _errback)
+                (let ((day (format-time-string "%d.%m" monday)))
+                  (push day ,fetched)
+                  (funcall callback
+                           (list (list :day-index 1 :date (format-time-string "%F" monday)
+                                       :start-time "08:30" :end-time "10:00"
+                                       :title (concat "Zajęcia " day) :type "Wykład"
+                                       :dates (list day))))))))
+     (unwind-protect (progn ,@body)
+       (when (get-buffer "*Plan PolSL: USOS*")
+         (kill-buffer "*Plan PolSL: USOS*")))))
+
+(ert-deftest plan-polsl-view-test-usos-weeks ()
+  (let ((fetched nil))
+    (plan-polsl-view-test--with-usos fetched
+                                     (plan-polsl-usos nil (encode-time 0 0 0 5 10 2026))
+                                     (with-current-buffer "*Plan PolSL: USOS*"
+                                       (should (eq plan-polsl-view-type 'usos))
+                                       (goto-char (point-min))
+                                       (should (search-forward "Plan Zajęć: Jan Kowalski (USOS)" nil t))
+                                       (should (search-forward "Zajęcia 05.10" nil t))
+                                       (plan-polsl-next-week)
+                                       (goto-char (point-min))
+                                       (should (search-forward "Zajęcia 12.10" nil t))
+                                       ;; going back hits the per-week cache
+                                       (plan-polsl-prev-week)
+                                       (goto-char (point-min))
+                                       (should (search-forward "Zajęcia 05.10" nil t)))
+                                     (should (equal fetched '("12.10" "05.10")))
+                                     ;; reopening shows the live buffer without fetching
+                                     (plan-polsl-usos)
+                                     (should (= (length fetched) 2))
+                                     ;; refresh drops the cache
+                                     (plan-polsl-usos t (encode-time 0 0 0 5 10 2026))
+                                     (should (equal fetched '("05.10" "12.10" "05.10"))))))
+
+(ert-deftest plan-polsl-view-test-usos-requires-login ()
+  (cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'ignore))
+    (should-error (plan-polsl-usos) :type 'user-error)))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))
