@@ -110,5 +110,12 @@
   (should (equal (plan-polsl-usos--split-output "\n000") '(nil . "")))
   (should (equal (plan-polsl-usos--split-output "") '(nil . ""))))
 
+(ert-deftest plan-polsl-usos-test-error-message ()
+  (should (equal (plan-polsl-usos-error-message
+                  '(plan-polsl-usos-unauthorized "HTTP 401: Invalid consumer."))
+                 "Odmowa dostępu USOS API (HTTP 401: Invalid consumer.)"))
+  (should (equal (plan-polsl-usos-error-message '(user-error "Brak"))
+                 "Brak")))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

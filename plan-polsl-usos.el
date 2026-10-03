@@ -222,5 +222,47 @@ TOKEN and FORM are as in `plan-polsl-usos--signed-url' and
                   (list (format "Brak odpowiedzi z %s" (plan-polsl-usos--host)))))
         (plan-polsl-usos--parse-response (car res) (cdr res) form)))))
 
+(defun plan-polsl-usos-error-message (err)
+  "Return a readable message for error condition ERR."
+  (if (and (memq (car err) '(plan-polsl-usos-error plan-polsl-usos-unauthorized))
+           (stringp (cadr err)))
+      (format "%s (%s)" (get (car err) 'error-message) (cadr err))
+    (error-message-string err)))
+
+(defun plan-polsl-usos--call-async (method params token callback errback)
+  "Call USOS API METHOD with PARAMS and TOKEN without blocking Emacs.
+CALLBACK receives the parsed result. ERRBACK receives the error
+condition, e.g. (plan-polsl-usos-unauthorized \"HTTP 401: ...\")."
+  (plan-polsl-usos--check-curl)
+  (let ((url (plan-polsl-usos--signed-url method params token))
+        (buf (generate-new-buffer " *plan-polsl-usos*")))
+    (with-current-buffer buf
+      (set-buffer-multibyte nil))
+    (make-process
+     :name "plan-polsl-usos"
+     :buffer buf
+     :command (cons "curl" (plan-polsl-usos--curl-args url))
+     :coding 'binary
+     :noquery t
+     :sentinel
+     (lambda (proc _event)
+       (when (memq (process-status proc) '(exit signal))
+         (let ((pbuf (process-buffer proc))
+               result failure)
+           (unwind-protect
+               (condition-case err
+                   (let ((res (plan-polsl-usos--split-output
+                               (with-current-buffer pbuf (buffer-string)))))
+                     (unless (car res)
+                       (signal 'plan-polsl-usos-error
+                               (list (format "Brak odpowiedzi z %s"
+                                             (plan-polsl-usos--host)))))
+                     (setq result (plan-polsl-usos--parse-response (car res) (cdr res))))
+                 (error (setq failure err)))
+             (kill-buffer pbuf))
+           (if failure
+               (funcall errback failure)
+             (funcall callback result))))))))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
