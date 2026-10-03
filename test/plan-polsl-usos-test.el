@@ -384,5 +384,22 @@
        (should-error (plan-polsl-usos-setup) :type 'user-error)
        (should (equal (plan-polsl-usos--load-consumer) '("ck2" . "cs3")))))))
 
+(ert-deftest plan-polsl-usos-test-login-runs-setup ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-file
+          (expand-file-name "consumer.eld" (file-name-directory plan-polsl-usos-token-file)))
+         (plan-polsl-usos-consumer-key nil)
+         (plan-polsl-usos-consumer-secret nil)
+         (auth-sources nil)
+         (setup-called nil))
+     (cl-letf (((symbol-function 'plan-polsl-usos-setup)
+                (lambda ()
+                  (setq setup-called t)
+                  (plan-polsl-usos--save-consumer "ck" "cs")))
+               ((symbol-function 'plan-polsl-usos--call)
+                (lambda (&rest _) (signal 'plan-polsl-usos-error '("stop")))))
+       (should-error (plan-polsl-usos-login) :type 'plan-polsl-usos-error))
+     (should setup-called))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

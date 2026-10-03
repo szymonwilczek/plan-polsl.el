@@ -368,8 +368,11 @@ access tokens belong to the consumer that requested them."
 (defun plan-polsl-usos-login ()
   "Log in to USOS with the OAuth PIN flow and store the access token.
 Opens the USOS authorization page in a browser, then asks for the PIN
-shown there after logging in."
+shown there after logging in. Runs `plan-polsl-usos-setup' first
+when no consumer key is set up yet."
   (interactive)
+  (unless (plan-polsl-usos--find-consumer)
+    (plan-polsl-usos-setup))
   (plan-polsl-usos--consumer)
   (let* ((request (plan-polsl-usos--call
                    "services/oauth/request_token"
