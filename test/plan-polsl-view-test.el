@@ -134,8 +134,9 @@
                                      ;; reopening shows the live buffer without fetching
                                      (plan-polsl-usos)
                                      (should (= (length fetched) 2))
-                                     ;; refresh drops the cache
-                                     (plan-polsl-usos t (encode-time 0 0 0 5 10 2026))
+                                     ;; refresh (r) drops the cache and refetches the shown week
+                                     (with-current-buffer "*Plan PolSL: USOS*"
+                                       (plan-polsl-refresh))
                                      (should (equal fetched '("05.10" "12.10" "05.10"))))))
 
 (ert-deftest plan-polsl-view-test-usos-requires-login ()

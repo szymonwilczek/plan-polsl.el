@@ -604,9 +604,17 @@
   "Display the PolSL timetable in a dedicated in-memory buffer.
 ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
+TYPE `usos' shows the personal USOS timetable via `plan-polsl-usos'.
 If REFRESH is non-nil, forces re-fetching from network.
 MONDAY specifies the active week's Monday (defaults to current week)."
   (interactive "P")
+  (if (eq type 'usos)
+      (plan-polsl-usos refresh monday)
+    (plan-polsl-view--open-polsl id type refresh monday)))
+
+(defun plan-polsl-view--open-polsl (id type refresh monday)
+  "Show the plan.polsl.pl timetable for ID and TYPE.
+See `plan-polsl' for REFRESH and MONDAY."
   (let* ((target-id (or id
                         (bound-and-true-p plan-polsl-id)
                         (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
