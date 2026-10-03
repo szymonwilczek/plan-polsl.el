@@ -46,5 +46,40 @@
         (plan-polsl-usos-consumer-secret nil))
     (should-error (plan-polsl-usos--consumer) :type 'user-error)))
 
+(defmacro plan-polsl-usos-test--with-token-file (&rest body)
+  "Run BODY with a fresh temporary `plan-polsl-usos-token-file'."
+  (declare (indent 0))
+  `(let* ((dir (make-temp-file "plan-polsl-usos" t))
+          (plan-polsl-usos-token-file (expand-file-name "token.eld" dir))
+          (plan-polsl-usos--token 'unloaded))
+     (unwind-protect (progn ,@body)
+       (delete-directory dir t))))
+
+(ert-deftest plan-polsl-usos-test-token-roundtrip ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-key "mykey"))
+     (should-not (plan-polsl-usos-logged-in-p))
+     (plan-polsl-usos--save-token '(:token "t" :secret "s" :user-id "42"))
+     (should (= (file-modes plan-polsl-usos-token-file) #o600))
+     (setq plan-polsl-usos--token 'unloaded)
+     (should (equal (plan-polsl-usos--load-token)
+                    '(:token "t" :secret "s" :user-id "42")))
+     (should (plan-polsl-usos-logged-in-p))
+     (plan-polsl-usos--delete-token)
+     (should-not (file-exists-p plan-polsl-usos-token-file))
+     (should-not (plan-polsl-usos-logged-in-p)))))
+
+(ert-deftest plan-polsl-usos-test-token-requires-consumer-key ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-key nil))
+     (plan-polsl-usos--save-token '(:token "t" :secret "s"))
+     (should-not (plan-polsl-usos-logged-in-p)))))
+
+(ert-deftest plan-polsl-usos-test-token-file-garbage ()
+  (plan-polsl-usos-test--with-token-file
+   (with-temp-file plan-polsl-usos-token-file
+     (insert "(:token"))
+   (should-not (plan-polsl-usos--load-token))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

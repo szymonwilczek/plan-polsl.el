@@ -61,6 +61,9 @@ The file is created with permissions 0600. Use a name ending in
                  (const :tag "English" "en"))
   :group 'plan-polsl-usos)
 
+(defvar plan-polsl-usos--token 'unloaded
+  "Cached access token plist, or the symbol `unloaded' before first read.")
+
 (defun plan-polsl-usos--url (method)
   "Return the absolute URL of USOS API METHOD (e.g. \"services/tt/user\")."
   (let ((base plan-polsl-usos-base-url))
@@ -94,6 +97,47 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
       (user-error "Brak sekretu klucza USOS: dodaj wpis auth-source dla %s (login %s)"
                   (plan-polsl-usos--host) key))
     (cons key secret)))
+
+(defun plan-polsl-usos--save-token (token)
+  "Persist access TOKEN plist to `plan-polsl-usos-token-file' (mode 0600)."
+  (let ((file plan-polsl-usos-token-file))
+    (make-directory (file-name-directory (expand-file-name file)) t)
+    (with-file-modes #o600
+      (with-temp-file file
+        (insert ";; plan-polsl USOS access token, do not share\n")
+        (let ((print-length nil)
+              (print-level nil))
+          (prin1 token (current-buffer)))
+        (insert "\n")))
+    (setq plan-polsl-usos--token token)))
+
+(defun plan-polsl-usos--load-token ()
+  "Return the stored access token plist, or nil when not logged in."
+  (when (eq plan-polsl-usos--token 'unloaded)
+    (setq plan-polsl-usos--token
+          (let ((file plan-polsl-usos-token-file))
+            (when (file-readable-p file)
+              (condition-case nil
+                  (with-temp-buffer
+                    (insert-file-contents file)
+                    (let ((token (read (current-buffer))))
+                      (and (plist-get token :token)
+                           (plist-get token :secret)
+                           token)))
+                (error nil))))))
+  plan-polsl-usos--token)
+
+(defun plan-polsl-usos--delete-token ()
+  "Forget the stored access token and remove its file."
+  (when (file-exists-p plan-polsl-usos-token-file)
+    (delete-file plan-polsl-usos-token-file))
+  (setq plan-polsl-usos--token nil))
+
+(defun plan-polsl-usos-logged-in-p ()
+  "Return non-nil when a consumer key and a stored access token exist."
+  (and plan-polsl-usos-consumer-key
+       (plan-polsl-usos--load-token)
+       t))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
