@@ -287,6 +287,7 @@
          (sections (plist-get entry :sections))
          (groups (plist-get entry :groups))
          (teachers-info (plist-get entry :teachers-info))
+         (teachers (plist-get entry :teachers))
          (date (plist-get entry :date))
          (first-target-pos nil))
     (with-current-buffer buf
@@ -351,7 +352,13 @@
                   (put-text-property beg (point) 'plan-polsl-teacher-id tid)
                   (put-text-property beg (point) 'plan-polsl-teacher-name full-name)
                   (put-text-property beg (point) 'mouse-face 'highlight))))
-          (insert (propertize "  (Brak informacji o prowadzącym)\n" 'face 'font-lock-comment-face)))
+          (if teachers
+              (progn
+                (insert (propertize "Prowadzący:\n" 'face '(:weight bold :underline t)))
+                (dolist (name teachers)
+                  (insert (propertize (format "  -> %s\n" name)
+                                      'face 'font-lock-function-name-face))))
+            (insert (propertize "  (Brak informacji o prowadzącym)\n" 'face 'font-lock-comment-face))))
 
         ;; rooms section
         (insert "\n")
