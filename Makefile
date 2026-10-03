@@ -10,6 +10,8 @@ ELS = plan-polsl.el \
 
 ELCS = $(ELS:.el=.elc)
 
+TESTS = $(wildcard test/*-test.el)
+
 .PHONY: all compile test clean
 
 all: compile
@@ -21,6 +23,7 @@ compile: $(ELCS)
 
 test: compile
 	$(EMACS) -Q --batch -L . -l plan-polsl.el --eval '(progn (message "All modules loaded successfully!"))'
+	$(EMACS) -Q --batch -L . -L test $(addprefix -l ,$(TESTS)) -f ert-run-tests-batch-and-exit
 
 clean:
 	rm -f *.elc *-autoloads.el *.cache
