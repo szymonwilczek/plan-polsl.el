@@ -33,10 +33,11 @@
   :group 'plan-polsl-usos)
 
 (defcustom plan-polsl-usos-consumer-key nil
-  "USOS API consumer key registered by the user.
+  "USOS API consumer key, an alternative to `plan-polsl-usos-setup'.
 Obtain one at <base-url>/developers/. The matching consumer secret is
 looked up with `auth-source' or taken from
-`plan-polsl-usos-consumer-secret'."
+`plan-polsl-usos-consumer-secret'. Ignored when
+`plan-polsl-usos-consumer-file' holds a key."
   :type '(choice (const :tag "Not Set" nil)
                  (string :tag "Consumer Key"))
   :group 'plan-polsl-usos)
@@ -73,9 +74,10 @@ The file is created with permissions 0600. Use a name ending in
 
 (defcustom plan-polsl-usos-default t
   "When non-nil, `plan-polsl' shows the USOS timetable once logged in.
-Logged in means a consumer key is configured and an access token is
-stored (see `plan-polsl-usos-login'). When nil, the USOS timetable is
-only shown by the explicit `plan-polsl-usos' command."
+Logged in means a consumer key is set up and an access token is
+stored, see `plan-polsl-usos-setup' and `plan-polsl-usos-login'.
+When nil, the USOS timetable is only shown by the explicit
+`plan-polsl-usos' command."
   :type 'boolean
   :group 'plan-polsl-usos)
 
@@ -134,17 +136,22 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
           (if (functionp secret) (funcall secret) secret)))
       plan-polsl-usos-consumer-secret))
 
+(defun plan-polsl-usos--find-consumer ()
+  "Return (KEY . SECRET) of the configured consumer, or nil.
+`plan-polsl-usos-consumer-file' (written by `plan-polsl-usos-setup')
+takes precedence over `plan-polsl-usos-consumer-key' combined with
+`auth-source' or `plan-polsl-usos-consumer-secret'."
+  (or (plan-polsl-usos--load-consumer)
+      (let ((key plan-polsl-usos-consumer-key)
+            (secret (plan-polsl-usos--consumer-secret)))
+        (when (and (stringp key) (not (string-empty-p key))
+                   (stringp secret) (not (string-empty-p secret)))
+          (cons key secret)))))
+
 (defun plan-polsl-usos--consumer ()
   "Return (KEY . SECRET) of the configured consumer or signal `user-error'."
-  (let ((key plan-polsl-usos-consumer-key)
-        (secret (plan-polsl-usos--consumer-secret)))
-    (unless (and key (not (string-empty-p key)))
-      (user-error "Ustaw `plan-polsl-usos-consumer-key' (klucz z %sdevelopers/)"
-                  plan-polsl-usos-base-url))
-    (unless (and secret (not (string-empty-p secret)))
-      (user-error "Brak sekretu klucza USOS: dodaj wpis auth-source dla %s (login %s)"
-                  (plan-polsl-usos--host) key))
-    (cons key secret)))
+  (or (plan-polsl-usos--find-consumer)
+      (user-error "Brak klucza USOS API: uruchom M-x plan-polsl-usos-setup")))
 
 (defun plan-polsl-usos--write-private (file comment data)
   "Write DATA as a Lisp form to FILE with mode 0600, preceded by COMMENT."
@@ -205,8 +212,8 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
   (setq plan-polsl-usos--token nil))
 
 (defun plan-polsl-usos-logged-in-p ()
-  "Return non-nil when a consumer key and a stored access token exist."
-  (and plan-polsl-usos-consumer-key
+  "Return non-nil when a consumer and a stored access token exist."
+  (and (plan-polsl-usos--find-consumer)
        (plan-polsl-usos--load-token)
        t))
 

@@ -8,6 +8,12 @@
 (require 'ert)
 (require 'plan-polsl-usos)
 
+;; never touch the user's real private files
+(setq plan-polsl-usos-consumer-file
+      (expand-file-name "plan-polsl-test-no-consumer.eld" temporary-file-directory)
+      plan-polsl-usos-token-file
+      (expand-file-name "plan-polsl-test-no-token.eld" temporary-file-directory))
+
 (ert-deftest plan-polsl-usos-test-url ()
   (let ((plan-polsl-usos-base-url "https://usosapi.polsl.pl/"))
     (should (equal (plan-polsl-usos--url "services/tt/user")
@@ -57,7 +63,8 @@
 
 (ert-deftest plan-polsl-usos-test-token-roundtrip ()
   (plan-polsl-usos-test--with-token-file
-   (let ((plan-polsl-usos-consumer-key "mykey"))
+   (let ((plan-polsl-usos-consumer-key "mykey")
+         (plan-polsl-usos-consumer-secret "mysecret"))
      (should-not (plan-polsl-usos-logged-in-p))
      (plan-polsl-usos--save-token '(:token "t" :secret "s" :user-id "42"))
      (should (= (file-modes plan-polsl-usos-token-file) #o600))
@@ -71,7 +78,9 @@
 
 (ert-deftest plan-polsl-usos-test-token-requires-consumer-key ()
   (plan-polsl-usos-test--with-token-file
-   (let ((plan-polsl-usos-consumer-key nil))
+   (let ((plan-polsl-usos-consumer-key nil)
+         (plan-polsl-usos-consumer-secret nil)
+         (auth-sources nil))
      (plan-polsl-usos--save-token '(:token "t" :secret "s"))
      (should-not (plan-polsl-usos-logged-in-p)))))
 
@@ -333,6 +342,22 @@
           (should (equal (plan-polsl-usos--load-consumer) '("ck" . "cs")))
           (plan-polsl-usos--save-consumer "ck" "")
           (should-not (plan-polsl-usos--load-consumer)))
+      (delete-directory dir t))))
+
+(ert-deftest plan-polsl-usos-test-consumer-file-wins ()
+  (let* ((dir (make-temp-file "plan-polsl-usos" t))
+         (plan-polsl-usos-consumer-file (expand-file-name "consumer.eld" dir))
+         (auth-sources nil)
+         (plan-polsl-usos-consumer-key "from-config")
+         (plan-polsl-usos-consumer-secret "config-secret"))
+    (unwind-protect
+        (progn
+          (should (equal (plan-polsl-usos--consumer) '("from-config" . "config-secret")))
+          (plan-polsl-usos--save-consumer "from-file" "file-secret")
+          (should (equal (plan-polsl-usos--consumer) '("from-file" . "file-secret")))
+          (let ((plan-polsl-usos-consumer-key nil)
+                (plan-polsl-usos-consumer-secret nil))
+            (should (equal (plan-polsl-usos--consumer) '("from-file" . "file-secret")))))
       (delete-directory dir t))))
 
 (provide 'plan-polsl-usos-test)
