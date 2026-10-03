@@ -3,6 +3,7 @@ EMACS ?= emacs
 ELS = plan-polsl.el \
       plan-polsl-http.el \
       plan-polsl-oauth.el \
+      plan-polsl-store.el \
       plan-polsl-usos.el \
       plan-polsl-parser.el \
       plan-polsl-search.el \

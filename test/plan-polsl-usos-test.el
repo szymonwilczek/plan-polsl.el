@@ -323,14 +323,6 @@
   (plan-polsl-usos-test--with-token-file
    (should-error (plan-polsl-usos-fetch-week (current-time)) :type 'user-error)))
 
-(ert-deftest plan-polsl-usos-test-data-file ()
-  (should (equal (let ((process-environment (cons "XDG_DATA_HOME=/xdg" process-environment)))
-                   (plan-polsl-usos--data-file "usos-token.eld"))
-                 "/xdg/plan-polsl/usos-token.eld"))
-  (should (equal (let ((process-environment (cons "XDG_DATA_HOME" process-environment)))
-                   (plan-polsl-usos--data-file "x.eld"))
-                 (expand-file-name "~/.local/share/plan-polsl/x.eld"))))
-
 (ert-deftest plan-polsl-usos-test-consumer-file-roundtrip ()
   (let* ((dir (make-temp-file "plan-polsl-usos" t))
          (plan-polsl-usos-consumer-file (expand-file-name "sub/consumer.eld" dir)))

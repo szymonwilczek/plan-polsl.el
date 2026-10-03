@@ -21,6 +21,7 @@
 (require 'auth-source)
 (require 'url-parse)
 (require 'plan-polsl-oauth)
+(require 'plan-polsl-store)
 
 (defgroup plan-polsl-usos nil
   "USOS API integration for plan-polsl."
@@ -49,15 +50,8 @@ Prefer storing the secret in an encrypted auth-source file instead."
                  (string :tag "Consumer Secret"))
   :group 'plan-polsl-usos)
 
-(defun plan-polsl-usos--data-file (name)
-  "Return the default path of private data file NAME.
-Files live in $XDG_DATA_HOME/plan-polsl (~/.local/share/plan-polsl),
-outside `user-emacs-directory'."
-  (expand-file-name (concat "plan-polsl/" name)
-                    (or (getenv "XDG_DATA_HOME") "~/.local/share")))
-
 (defcustom plan-polsl-usos-token-file
-  (plan-polsl-usos--data-file "usos-token.eld")
+  (plan-polsl-store-data-file "usos-token.eld")
   "File storing the USOS access token after logging in.
 The file is created with permissions 0600. Use a name ending in
 \".gpg\" to have EasyPG encrypt it."
@@ -65,7 +59,7 @@ The file is created with permissions 0600. Use a name ending in
   :group 'plan-polsl-usos)
 
 (defcustom plan-polsl-usos-consumer-file
-  (plan-polsl-usos--data-file "usos-consumer.eld")
+  (plan-polsl-store-data-file "usos-consumer.eld")
   "File storing the consumer key and secret saved by `plan-polsl-usos-setup'.
 The file is created with permissions 0600. Use a name ending in
 \".gpg\" to have EasyPG encrypt it."
@@ -153,36 +147,15 @@ takes precedence over `plan-polsl-usos-consumer-key' combined with
   (or (plan-polsl-usos--find-consumer)
       (user-error "Brak klucza USOS API: uruchom M-x plan-polsl-usos-setup")))
 
-(defun plan-polsl-usos--write-private (file comment data)
-  "Write DATA as a Lisp form to FILE with mode 0600, preceded by COMMENT."
-  (with-file-modes #o700
-    (make-directory (file-name-directory (expand-file-name file)) t))
-  (with-file-modes #o600
-    (with-temp-file file
-      (insert ";; " comment "\n")
-      (let ((print-length nil)
-            (print-level nil))
-        (prin1 data (current-buffer)))
-      (insert "\n"))))
-
-(defun plan-polsl-usos--read-private (file)
-  "Return the Lisp form stored in FILE, or nil if missing or unreadable."
-  (when (file-readable-p file)
-    (condition-case nil
-        (with-temp-buffer
-          (insert-file-contents file)
-          (read (current-buffer)))
-      (error nil))))
-
 (defun plan-polsl-usos--save-consumer (key secret)
   "Persist consumer KEY and SECRET to `plan-polsl-usos-consumer-file'."
-  (plan-polsl-usos--write-private plan-polsl-usos-consumer-file
-                                  "plan-polsl USOS consumer key, do not share"
-                                  (list :key key :secret secret)))
+  (plan-polsl-store-write plan-polsl-usos-consumer-file
+                          "plan-polsl USOS consumer key, do not share"
+                          (list :key key :secret secret)))
 
 (defun plan-polsl-usos--load-consumer ()
   "Return (KEY . SECRET) from `plan-polsl-usos-consumer-file', or nil."
-  (let* ((data (plan-polsl-usos--read-private plan-polsl-usos-consumer-file))
+  (let* ((data (plan-polsl-store-read plan-polsl-usos-consumer-file))
          (key (plist-get data :key))
          (secret (plist-get data :secret)))
     (when (and (stringp key) (not (string-empty-p key))
@@ -191,16 +164,16 @@ takes precedence over `plan-polsl-usos-consumer-key' combined with
 
 (defun plan-polsl-usos--save-token (token)
   "Persist access TOKEN plist to `plan-polsl-usos-token-file' (mode 0600)."
-  (plan-polsl-usos--write-private plan-polsl-usos-token-file
-                                  "plan-polsl USOS access token, do not share"
-                                  token)
+  (plan-polsl-store-write plan-polsl-usos-token-file
+                          "plan-polsl USOS access token, do not share"
+                          token)
   (setq plan-polsl-usos--token token))
 
 (defun plan-polsl-usos--load-token ()
   "Return the stored access token plist, or nil when not logged in."
   (when (eq plan-polsl-usos--token 'unloaded)
     (setq plan-polsl-usos--token
-          (let ((token (plan-polsl-usos--read-private plan-polsl-usos-token-file)))
+          (let ((token (plan-polsl-store-read plan-polsl-usos-token-file)))
             (and (plist-get token :token)
                  (plist-get token :secret)
                  token))))
