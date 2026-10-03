@@ -161,6 +161,8 @@
       (plan-polsl-detail-quit)
       (message "Otwieranie planu sali: %s..." rname)
       (plan-polsl rid 20 t)))
+   ((get-text-property (point) 'plan-polsl-url)
+    (browse-url (get-text-property (point) 'plan-polsl-url)))
    (t
     (message "Przesuń kursor na wiersz z prowadzącym lub salą i naciśnij [Enter]."))))
 
@@ -290,6 +292,7 @@
          (teachers (plist-get entry :teachers))
          (date (plist-get entry :date))
          (building (plist-get entry :building))
+         (url (plist-get entry :url))
          (first-target-pos nil))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
@@ -386,6 +389,16 @@
           (insert (format "  %-12s %s\n"
                           (propertize "Budynek:" 'face 'font-lock-comment-face)
                           building)))
+
+        ;; link to the class page (USOS)
+        (when url
+          (insert "\n")
+          (let ((beg (point)))
+            (unless first-target-pos
+              (setq first-target-pos beg))
+            (insert (propertize "  -> Strona zajęć w USOSweb\n" 'face 'link))
+            (put-text-property beg (point) 'plan-polsl-url url)
+            (put-text-property beg (point) 'mouse-face 'highlight)))
 
         ;; footer
         (insert "\n" (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n")

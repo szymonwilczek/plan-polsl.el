@@ -62,6 +62,30 @@
                                        (should (search-forward "Zjazd" nil t))
                                        (should-not (search-forward "Niedziela" nil t)))))
 
+(ert-deftest plan-polsl-view-test-detail-usos-entry ()
+  (let ((entry (list :day-index 1 :day-name "Poniedziałek" :date "2026-10-05"
+                     :start-time "08:30" :end-time "10:00"
+                     :title "Analiza matematyczna" :type "Wykład"
+                     :cycle 'odd :biweekly t :dates '("05.10")
+                     :groups '("gr. 1") :teachers '("dr inż. Jan Kowalski")
+                     :rooms '("301") :building "Wydział AEiI"
+                     :url "https://usosweb.polsl.pl/group"))
+        (opened nil))
+    (save-window-excursion
+      (plan-polsl-view--display-detail-popup entry)
+      (with-current-buffer "*Plan PolSL: Szczegóły*"
+        (let ((text (buffer-string)))
+          (should (string-match-p "Poniedziałek 05.10.2026, 08:30 - 10:00" text))
+          (should (string-match-p "Tydzień Nieparzysty" text))
+          (should (string-match-p "-> dr inż. Jan Kowalski" text))
+          (should (string-match-p "Budynek: +Wydział AEiI" text)))
+        (goto-char (point-min))
+        (search-forward "Strona zajęć")
+        (cl-letf (((symbol-function 'browse-url) (lambda (u &rest _) (setq opened u))))
+          (plan-polsl-detail-open-target))
+        (should (equal opened "https://usosweb.polsl.pl/group")))
+      (kill-buffer "*Plan PolSL: Szczegóły*"))))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))
