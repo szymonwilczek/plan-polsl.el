@@ -204,13 +204,20 @@
   (should (= (plan-polsl-usos--iso-day "2026-10-09") 5))
   (should (= (plan-polsl-usos--iso-day "2026-10-11") 7)))
 
+(ert-deftest plan-polsl-usos-test-capitalize ()
+  (should (equal (plan-polsl-usos--capitalize "laboratorium") "Laboratorium"))
+  (should (equal (plan-polsl-usos--capitalize "ćwiczenia laboratoryjne")
+                 "Ćwiczenia laboratoryjne"))
+  (should (equal (plan-polsl-usos--capitalize "Wykład") "Wykład"))
+  (should-not (plan-polsl-usos--capitalize nil)))
+
 (defconst plan-polsl-usos-test--activities-json
   "[{\"type\": \"classgroup\",
      \"start_time\": \"2026-10-05 08:30:00\", \"end_time\": \"2026-10-05 10:00:00\",
      \"name\": {\"pl\": \"Analiza matematyczna - Wykład\", \"en\": \"Calculus - Lecture\"},
      \"url\": \"https://usosweb.polsl.pl/x\",
      \"course_name\": {\"pl\": \"Analiza matematyczna\", \"en\": \"Calculus\"},
-     \"classtype_name\": {\"pl\": \"Wykład\", \"en\": \"Lecture\"},
+     \"classtype_name\": {\"pl\": \"wykład\", \"en\": \"lecture\"},
      \"lecturer_ids\": [101, 102], \"group_number\": 1,
      \"classgroup_profile_url\": \"https://usosweb.polsl.pl/group\",
      \"building_name\": {\"pl\": \"Wydział AEiI\", \"en\": \"Faculty AEiI\"},

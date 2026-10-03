@@ -399,6 +399,14 @@ secret stored by `plan-polsl-usos-setup'."
                  "Wylogowano z USOS i usunięto klucz USOS API"
                "Wylogowano z USOS"))))
 
+(defun plan-polsl-usos--capitalize (text)
+  "Return TEXT with its first letter in upper case, or nil for nil.
+USOS returns class types in lower case (\"laboratorium\"), unlike
+plan.polsl.pl; only the first letter changes, so \"ćwiczenia
+laboratoryjne\" becomes \"Ćwiczenia laboratoryjne\"."
+  (when text
+    (concat (upcase (substring text 0 1)) (substring text 1))))
+
 (defun plan-polsl-usos--lang (langdict)
   "Return the text of LANGDICT in `plan-polsl-usos-language'.
 LANGDICT is an alist like ((pl . \"Wykład\") (en . \"Lecture\")). Falls
@@ -461,7 +469,8 @@ display names; unknown lecturers are shown by id."
          (title (or course
                     (plan-polsl-usos--lang (alist-get 'name activity))
                     "Zajęcia"))
-         (type (or (plan-polsl-usos--lang (alist-get 'classtype_name activity))
+         (type (or (plan-polsl-usos--capitalize
+                    (plan-polsl-usos--lang (alist-get 'classtype_name activity)))
                    (if (equal kind "exam") "Egzamin" "Zajęcia")))
          (frequency (alist-get 'frequency activity))
          (group (alist-get 'group_number activity))
