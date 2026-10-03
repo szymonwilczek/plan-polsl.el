@@ -137,6 +137,19 @@ Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 - *Org-Agenda:* ~M-x plan-polsl-sync~ (or ~s~) exports ~plan-polsl-usos-sync-weeks~ weeks from the current one, with plain (non-repeating) timestamps grouped by date.
 - Set ~plan-polsl-usos-default~ to ~nil~ to keep plan.polsl.pl as the default; the USOS timetable is then available with ~M-x plan-polsl-usos~.
 
+*** USOS options
+
+| Variable                        | Default                              | Description                                                  |
+|---------------------------------+--------------------------------------+--------------------------------------------------------------|
+| ~plan-polsl-usos-consumer-key~    | ~nil~                                  | Your consumer key from usosapi.polsl.pl/developers.          |
+| ~plan-polsl-usos-consumer-secret~ | ~nil~                                  | Fallback when auth-source has no entry (not recommended).    |
+| ~plan-polsl-usos-token-file~      | ~~/.emacs.d/plan-polsl-usos-token.eld~ | Where the access token is stored (use ~.gpg~ to encrypt).      |
+| ~plan-polsl-usos-default~         | ~t~                                    | Prefer the USOS timetable in ~plan-polsl~ and ~plan-polsl-sync~. |
+| ~plan-polsl-usos-sync-weeks~      | ~16~                                   | Weeks exported to Org by ~plan-polsl-sync~.                    |
+| ~plan-polsl-usos-language~        | ~"pl"~                                 | Language of course names (~"pl"~ or ~"en"~).                     |
+| ~plan-polsl-usos-timeout~         | ~15~                                   | Seconds before a USOS request times out.                     |
+| ~plan-polsl-usos-base-url~        | ~"https://usosapi.polsl.pl/"~          | USOS API installation.                                       |
+
 ** Interactive Commands
 
 | Command                         | Description                                                            |
