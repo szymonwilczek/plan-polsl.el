@@ -76,6 +76,7 @@ When nil, automatically computes the appropriate semester start date."
 
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
+(require 'plan-polsl-usos)
 (require 'plan-polsl-view)
 (require 'plan-polsl-search)
 (require 'plan-polsl-org)
