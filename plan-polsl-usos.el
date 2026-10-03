@@ -338,6 +338,33 @@ condition, e.g. (plan-polsl-usos-unauthorized \"HTTP 401: ...\")."
           "?oauth_token=" (plan-polsl-oauth-encode request-token)))
 
 ;;;###autoload
+(defun plan-polsl-usos-setup ()
+  "Ask for the USOS API consumer key and secret and store them privately.
+Register them at <base-url>/developers/. They are saved to
+`plan-polsl-usos-consumer-file' (mode 0600), never to the Emacs
+configuration. Changing the key forgets the current login, since
+access tokens belong to the consumer that requested them."
+  (interactive)
+  (let* ((key (string-trim
+               (read-string (format "Consumer Key (z %sdevelopers/): "
+                                    plan-polsl-usos-base-url))))
+         (_ (when (string-empty-p key)
+              (user-error "Nie podano Consumer Key")))
+         (secret (string-trim (read-passwd "Consumer Secret: ")))
+         (_ (when (string-empty-p secret)
+              (user-error "Nie podano Consumer Secret")))
+         (old (plan-polsl-usos--load-consumer)))
+    (plan-polsl-usos--save-consumer key secret)
+    (when (and old (not (equal (car old) key)))
+      (plan-polsl-usos--delete-token))
+    (message "Zapisano klucz USOS w %s"
+             (abbreviate-file-name plan-polsl-usos-consumer-file))
+    (when (and (called-interactively-p 'interactive)
+               (not (plan-polsl-usos-logged-in-p))
+               (y-or-n-p "Zalogować się teraz do USOS? "))
+      (plan-polsl-usos-login))))
+
+;;;###autoload
 (defun plan-polsl-usos-login ()
   "Log in to USOS with the OAuth PIN flow and store the access token.
 Opens the USOS authorization page in a browser, then asks for the PIN

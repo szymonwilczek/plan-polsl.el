@@ -360,5 +360,29 @@
             (should (equal (plan-polsl-usos--consumer) '("from-file" . "file-secret")))))
       (delete-directory dir t))))
 
+(ert-deftest plan-polsl-usos-test-setup ()
+  (plan-polsl-usos-test--with-token-file
+   (let* ((plan-polsl-usos-consumer-file
+           (expand-file-name "consumer.eld" (file-name-directory plan-polsl-usos-token-file)))
+          (answers nil))
+     (cl-letf (((symbol-function 'read-string) (lambda (&rest _) (pop answers)))
+               ((symbol-function 'read-passwd) (lambda (&rest _) (pop answers))))
+       (setq answers '(" ck1 " "cs1"))
+       (plan-polsl-usos-setup)
+       (should (equal (plan-polsl-usos--load-consumer) '("ck1" . "cs1")))
+       (plan-polsl-usos--save-token '(:token "t" :secret "s"))
+       ;; same key, new secret: login kept
+       (setq answers '("ck1" "cs2"))
+       (plan-polsl-usos-setup)
+       (should (plan-polsl-usos-logged-in-p))
+       ;; different key: old token is useless and gets dropped
+       (setq answers '("ck2" "cs3"))
+       (plan-polsl-usos-setup)
+       (should (equal (plan-polsl-usos--load-consumer) '("ck2" . "cs3")))
+       (should-not (plan-polsl-usos-logged-in-p))
+       (setq answers '("ck3" ""))
+       (should-error (plan-polsl-usos-setup) :type 'user-error)
+       (should (equal (plan-polsl-usos--load-consumer) '("ck2" . "cs3")))))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here
