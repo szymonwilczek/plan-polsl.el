@@ -29,7 +29,18 @@
     (should (string-match-p "^\\*\\* Analiza matematyczna - Wykład :wyklad:uczelnia:" text))
     (should (string-match-p "<2026-10-05 pon 08:30-10:00>$" text))
     (should-not (string-match-p "\\+[12]w" text))
-    (should (string-match-p ":PROWADZACY: dr Jan Kowalski" text))))
+    (should (string-match-p ":PROWADZACY: dr Jan Kowalski" text))
+    (should (string-match-p ":CYKL: Co 2 tygodnie" text))))
+
+(ert-deftest plan-polsl-org-test-single-meeting-cycle ()
+  (let ((once (plan-polsl-org-format-entry
+               (list :day-index 6 :date "2026-10-10" :start-time "12:00" :end-time "14:00"
+                     :title "Egzamin z fizyki" :type "Egzamin")))
+        (weekly (plan-polsl-org-format-entry
+                 (list :day-index 1 :date "2026-10-05" :start-time "08:30" :end-time "10:00"
+                       :title "AiR" :type "Wykład" :cycle 'weekly))))
+    (should (string-match-p ":CYKL: Pojedynczy termin" once))
+    (should (string-match-p ":CYKL: Co tydzień" weekly))))
 
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

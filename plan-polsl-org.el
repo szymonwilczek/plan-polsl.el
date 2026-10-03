@@ -110,7 +110,10 @@ START-TIME and END-TIME are \"hh:mm\" strings."
             rooms-str
             teachers-str
             (if sections (format "   :SEKCJA: %s\n" (mapconcat #'identity sections ", ")) "")
-            (if biweekly "Co 2 tygodnie (*)" "Co tydzień"))))
+            (cond
+             (biweekly "Co 2 tygodnie (*)")
+             ((and date (not (eq (plist-get entry :cycle) 'weekly))) "Pojedynczy termin")
+             (t "Co tydzień")))))
 
 (defun plan-polsl-org-generate-document (entries &optional title-info)
   "Generate complete Org-mode document string for ENTRIES and TITLE-INFO."
