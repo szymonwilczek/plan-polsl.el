@@ -594,6 +594,23 @@ MONDAY specifies the active week's Monday (defaults to current week)."
        (lambda (err)
          (message "plan-polsl błąd pobierania: %s" err))))))
 
+(defun plan-polsl-view--require-plan ()
+  "Signal `user-error' unless the current buffer shows a loaded timetable."
+  (unless (and (derived-mode-p 'plan-polsl-mode) plan-polsl-view-id)
+    (user-error "Brak załadowanego planu")))
+
+(defun plan-polsl-view--show-week (monday)
+  "Re-render the current timetable buffer for the week starting at MONDAY."
+  (plan-polsl-view--require-plan)
+  (setq plan-polsl-view-active-monday monday)
+  (plan-polsl-view--display-window
+   (plan-polsl-view--render-buffer plan-polsl-view-entries
+                                   plan-polsl-view-meta
+                                   plan-polsl-view-id
+                                   plan-polsl-view-type
+                                   monday
+                                   (buffer-name))))
+
 ;;;###autoload
 (defun plan-polsl-refresh ()
   "Force re-fetch timetable from network and update current buffer."
@@ -607,75 +624,39 @@ MONDAY specifies the active week's Monday (defaults to current week)."
 (defun plan-polsl-current-week ()
   "Reset timetable view to the current academic week."
   (interactive)
-  (unless plan-polsl-view-entries
-    (user-error "Brak załadowanego planu"))
-  (let ((current-mon (plan-polsl-view--get-monday (current-time))))
-    (setq plan-polsl-view-active-monday current-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                               plan-polsl-view-meta
-                                               plan-polsl-view-id
-                                               plan-polsl-view-type
-                                               current-mon
-                                               (buffer-name))))
-      (plan-polsl-view--display-window buf))))
+  (plan-polsl-view--show-week (plan-polsl-view--get-monday (current-time))))
 
 ;;;###autoload
 (defun plan-polsl-goto-week (week-num)
   "Jump directly to WEEK-NUM (1-16) of the current academic semester."
   (interactive "nPrzejdź do tygodnia semestru (1-16): ")
-  (unless plan-polsl-view-entries
-    (user-error "Brak załadowanego planu"))
+  (plan-polsl-view--require-plan)
   (when (or (< week-num 1) (> week-num 30))
     (user-error "Numer tygodnia musi być z zakresu 1-30"))
   (let* ((sem-start (plan-polsl-view--determine-semester-start (current-time)))
          (sem-start-mon (plan-polsl-view--get-monday sem-start))
          (target-mon (time-add sem-start-mon (days-to-time (* (1- week-num) 7)))))
-    (setq plan-polsl-view-active-monday target-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                               plan-polsl-view-meta
-                                               plan-polsl-view-id
-                                               plan-polsl-view-type
-                                               target-mon
-                                               (buffer-name))))
-      (plan-polsl-view--display-window buf)
-      (message "Przejście do tygodnia %d (%s)"
-               week-num (format-time-string "%d.%m.%Y" target-mon)))))
+    (plan-polsl-view--show-week target-mon)
+    (message "Przejście do tygodnia %d (%s)"
+             week-num (format-time-string "%d.%m.%Y" target-mon))))
 
 ;;;###autoload
 (defun plan-polsl-prev-week ()
   "Navigate to previous week in current timetable buffer."
   (interactive)
-  (unless plan-polsl-view-entries
-    (user-error "Brak załadowanego planu"))
-  (let ((prev-mon (time-subtract (or plan-polsl-view-active-monday
-                                     (plan-polsl-view--get-monday (current-time)))
-                                 (days-to-time 7))))
-    (setq plan-polsl-view-active-monday prev-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                               plan-polsl-view-meta
-                                               plan-polsl-view-id
-                                               plan-polsl-view-type
-                                               prev-mon
-                                               (buffer-name))))
-      (plan-polsl-view--display-window buf))))
+  (plan-polsl-view--show-week
+   (time-subtract (or plan-polsl-view-active-monday
+                      (plan-polsl-view--get-monday (current-time)))
+                  (days-to-time 7))))
 
 ;;;###autoload
 (defun plan-polsl-next-week ()
   "Navigate to next week in current timetable buffer."
   (interactive)
-  (unless plan-polsl-view-entries
-    (user-error "Brak załadowanego planu"))
-  (let ((next-mon (time-add (or plan-polsl-view-active-monday
-                                (plan-polsl-view--get-monday (current-time)))
-                            (days-to-time 7))))
-    (setq plan-polsl-view-active-monday next-mon)
-    (let ((buf (plan-polsl-view--render-buffer plan-polsl-view-entries
-                                               plan-polsl-view-meta
-                                               plan-polsl-view-id
-                                               plan-polsl-view-type
-                                               next-mon
-                                               (buffer-name))))
-      (plan-polsl-view--display-window buf))))
+  (plan-polsl-view--show-week
+   (time-add (or plan-polsl-view-active-monday
+                 (plan-polsl-view--get-monday (current-time)))
+             (days-to-time 7))))
 
 (provide 'plan-polsl-view)
 ;;; plan-polsl-view.el ends here
