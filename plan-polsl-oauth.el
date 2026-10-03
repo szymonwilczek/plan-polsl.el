@@ -23,5 +23,27 @@
 VALUE may be a string or a number; strings are encoded as UTF-8 first."
   (url-hexify-string (format "%s" value) plan-polsl-oauth--unreserved-chars))
 
+(defun plan-polsl-oauth--to-bytes (value)
+  "Return VALUE as a unibyte UTF-8 string."
+  (if (multibyte-string-p value)
+      (encode-coding-string value 'utf-8 t)
+    value))
+
+(defun plan-polsl-oauth-hmac-sha1 (key message)
+  "Return raw HMAC-SHA1 digest (RFC 2104) of MESSAGE using KEY.
+Both KEY and MESSAGE are encoded as UTF-8 when multibyte."
+  (let* ((block-size 64)
+         (key (plan-polsl-oauth--to-bytes key))
+         (message (plan-polsl-oauth--to-bytes message))
+         (key (if (> (length key) block-size)
+                  (secure-hash 'sha1 key nil nil t)
+                key))
+         (key (concat key (make-string (- block-size (length key)) 0)))
+         (ipad (apply #'unibyte-string (mapcar (lambda (c) (logxor c #x36)) key)))
+         (opad (apply #'unibyte-string (mapcar (lambda (c) (logxor c #x5c)) key))))
+    (secure-hash 'sha1
+                 (concat opad (secure-hash 'sha1 (concat ipad message) nil nil t))
+                 nil nil t)))
+
 (provide 'plan-polsl-oauth)
 ;;; plan-polsl-oauth.el ends here
