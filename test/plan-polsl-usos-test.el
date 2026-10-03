@@ -401,5 +401,23 @@
        (should-error (plan-polsl-usos-login) :type 'plan-polsl-usos-error))
      (should setup-called))))
 
+(ert-deftest plan-polsl-usos-test-logout-forget-consumer ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-file
+          (expand-file-name "consumer.eld" (file-name-directory plan-polsl-usos-token-file)))
+         (revoked nil))
+     (plan-polsl-usos--save-consumer "ck" "cs")
+     (plan-polsl-usos--save-token '(:token "at" :secret "as"))
+     (cl-letf (((symbol-function 'plan-polsl-usos--call)
+                (lambda (&rest _) (setq revoked t) nil)))
+       (plan-polsl-usos-logout t))
+     (should revoked)
+     (should-not (file-exists-p plan-polsl-usos-consumer-file))
+     (should-not (file-exists-p plan-polsl-usos-token-file))
+     ;; forgetting the consumer also works when already logged out
+     (plan-polsl-usos--save-consumer "ck" "cs")
+     (plan-polsl-usos-logout t)
+     (should-not (file-exists-p plan-polsl-usos-consumer-file)))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here
