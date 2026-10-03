@@ -15,7 +15,7 @@
               :cycle 'weekly :rooms '("301") :teachers '("JK"))
         (list :day-index 3 :day-name "Środa"
               :start-time "10:15" :end-time "11:45"
-              :title "PSy" :type "Laboratorium" :cycle 'odd :biweekly t))
+              :title "PSy" :type "Laboratorium" :cycle 'even :biweekly t))
   "Synthetic plan.polsl.pl style entries.")
 
 (defmacro plan-polsl-view-test--with-buffer (monday &rest body)
@@ -31,7 +31,7 @@
        (kill-buffer buf))))
 
 (ert-deftest plan-polsl-view-test-render ()
-  ;; 2026-10-05 is the Monday of week 1 (odd)
+  ;; 2026-10-05 is the Monday of week 2 (even)
   (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
                                      (should (derived-mode-p 'plan-polsl-mode))
                                      (should (search-forward "Poniedziałek (05.10.2026)" nil t))
@@ -44,7 +44,7 @@
                                      (should (equal (format-time-string "%F" plan-polsl-view-active-monday) "2026-10-12"))
                                      (goto-char (point-min))
                                      (should (search-forward "Poniedziałek (12.10.2026)" nil t))
-                                     ;; odd-week lab is hidden in the even week
+                                     ;; even-week lab is hidden in the odd week
                                      (goto-char (point-min))
                                      (should-not (search-forward "PSy" nil t))
                                      (plan-polsl-prev-week)
@@ -178,6 +178,18 @@
 (ert-deftest plan-polsl-view-test-usos-requires-login ()
   (cl-letf (((symbol-function 'plan-polsl-usos-logged-in-p) #'ignore))
     (should-error (plan-polsl-usos) :type 'user-error)))
+
+(ert-deftest plan-polsl-view-test-winter-week-numbers ()
+  ;; October 1st 2026 is a Thursday, its week is week 1
+  (let ((w1 (plan-polsl-view--week-info (encode-time 0 0 0 28 9 2026)))
+        (w2 (plan-polsl-view--week-info (encode-time 0 0 0 5 10 2026)))
+        (jan (plan-polsl-view--week-info (encode-time 0 0 0 11 1 2027))))
+    (should (= (plist-get w1 :week-num) 1))
+    (should (eq (plist-get w1 :cycle) 'odd))
+    (should (string-match-p "Tydzień 1, Nieparzysty" (plist-get w1 :label)))
+    (should (= (plist-get w2 :week-num) 2))
+    (should (eq (plist-get w2 :cycle) 'even))
+    (should (= (plist-get jan :week-num) 16))))
 
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer

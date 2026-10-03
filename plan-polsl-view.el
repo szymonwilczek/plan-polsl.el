@@ -175,12 +175,17 @@
     (time-subtract time-val (days-to-time days-since-monday))))
 
 (defun plan-polsl-view--determine-semester-start (target-time)
-  "Determine semester anchor start date (Monday) for TARGET-TIME."
-  (let* ((decoded (decode-time target-time))
+  "Determine the semester start date for TARGET-TIME.
+The winter semester starts on October 1st, so week 1 is the week
+containing that day, whatever weekday it falls on. The semester is
+picked by the end of TARGET-TIME's week, so the last days of
+September already belong to the winter semester's first week."
+  (let* ((decoded (decode-time (time-add (plan-polsl-view--get-monday target-time)
+                                         (days-to-time 6))))
          (year (nth 5 decoded))
          (month (nth 4 decoded)))
     (if (or (>= month 10) (<= month 2))
-        (encode-time 0 0 0 5 10 (if (<= month 2) (1- year) year))
+        (encode-time 0 0 0 1 10 (if (<= month 2) (1- year) year))
       (encode-time 0 0 0 2 3 year))))
 
 (defun plan-polsl-view--week-info (monday-time)
