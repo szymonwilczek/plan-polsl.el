@@ -50,6 +50,18 @@
                                      (plan-polsl-prev-week)
                                      (should (equal (format-time-string "%F" plan-polsl-view-active-monday) "2026-10-05"))))
 
+(ert-deftest plan-polsl-view-test-weekend-only-when-busy ()
+  (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                     (should-not (search-forward "Sobota" nil t)))
+  (let ((plan-polsl-view-test--entries
+         (append plan-polsl-view-test--entries
+                 (list (list :day-index 6 :start-time "09:00" :end-time "12:00"
+                             :title "Zjazd" :type "Ćwiczenia" :dates '("10.10"))))))
+    (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                       (should (search-forward "Sobota (10.10.2026)" nil t))
+                                       (should (search-forward "Zjazd" nil t))
+                                       (should-not (search-forward "Niedziela" nil t)))))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))

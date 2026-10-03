@@ -201,7 +201,7 @@
                    (format "%s (Poza semestrem)" date-range)))))
 
 (defun plan-polsl-view--entry-occurs-p (entry day-idx monday-time week-cycle)
-  "Return non-nil if ENTRY occurs on DAY-IDX (1=Mon..5=Fri) during week."
+  "Return non-nil if ENTRY occurs on DAY-IDX (1=Mon..7=Sun) during week."
   (let* ((day-time (time-add monday-time (days-to-time (1- day-idx))))
          (day-str (format-time-string "%d.%m" day-time))
          (dates (plist-get entry :dates))
@@ -436,12 +436,12 @@
         (format "*Plan PolSL: %s*" id)))))
 
 (defun plan-polsl-view--filter-week-entries (entries monday-time week-cycle)
-  "Group ENTRIES into 5 day vectors for the week at MONDAY-TIME and WEEK-CYCLE."
-  (let ((day-groups (make-vector 5 nil)))
+  "Group ENTRIES into 7 day vectors for the week at MONDAY-TIME and WEEK-CYCLE."
+  (let ((day-groups (make-vector 7 nil)))
     (dolist (e entries)
       (let* ((d-idx (plist-get e :day-index))
              (idx (1- d-idx)))
-        (when (and (>= idx 0) (< idx 5)
+        (when (and (>= idx 0) (< idx 7)
                    (plan-polsl-view--entry-occurs-p e d-idx monday-time week-cycle))
           (aset day-groups idx (append (aref day-groups idx) (list e))))))
     day-groups))
@@ -449,7 +449,7 @@
 (defun plan-polsl-view--compute-subject-width (day-groups)
   "Compute maximum subject title column width across all DAY-GROUPS."
   (let ((max-w 18))
-    (dotimes (i 5)
+    (dotimes (i 7)
       (dolist (e (aref day-groups i))
         (let* ((title (plist-get e :title))
                (biweekly (plist-get e :biweekly))
@@ -472,7 +472,7 @@
          (week-cycle (plist-get week-info :cycle))
          (day-groups (plan-polsl-view--filter-week-entries entries monday-time week-cycle))
          (max-subj-w (plan-polsl-view--compute-subject-width day-groups))
-         (rendered-days (make-vector 5 nil))
+         (rendered-days (make-vector 7 nil))
          (all-lines nil)
          (header-line-1 (if path (format "%s" path) ""))
          (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
@@ -484,7 +484,7 @@
     (push header-line-3 all-lines)
     (push header-line-4 all-lines)
 
-    (dotimes (i 5)
+    (dotimes (i 7)
       (let ((day-lines nil))
         (dolist (e (aref day-groups i))
           (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w)))
@@ -512,25 +512,27 @@
           (insert (propertize (format "%s\n" header-line-4) 'face 'font-lock-comment-face))
           (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
 
-          ;; days
-          (dotimes (i 5)
+          ;; days, weekend only when it has classes
+          (dotimes (i 7)
             (let* ((day-lines (aref rendered-days i))
                    (day-entries (aref day-groups i))
                    (day-time (time-add monday-time (days-to-time i)))
                    (day-date-str (format-time-string "%d.%m.%Y" day-time))
-                   (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"])
+                   (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"
+                               "Sobota" "Niedziela"])
                    (day-title (format "%s (%s)" (aref day-names i) day-date-str)))
-              (insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
-              (insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
-              (if day-lines
-                  (cl-mapc (lambda (l e)
-                             (let ((beg (point)))
-                               (insert l "\n")
-                               (put-text-property beg (point) 'plan-polsl-entry e)
-                               (put-text-property beg (point) 'mouse-face 'highlight)))
-                           day-lines day-entries)
-                (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
-              (insert "\n"))))
+              (when (or (< i 5) day-lines)
+		(insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
+		(insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
+		(if day-lines
+                    (cl-mapc (lambda (l e)
+                               (let ((beg (point)))
+				 (insert l "\n")
+				 (put-text-property beg (point) 'plan-polsl-entry e)
+				 (put-text-property beg (point) 'mouse-face 'highlight)))
+                             day-lines day-entries)
+                  (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
+		(insert "\n")))))
         (goto-char (point-min)))
       buf)))
 
