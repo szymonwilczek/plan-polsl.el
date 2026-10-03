@@ -43,7 +43,7 @@
   "Compute date components (YEAR MONTH DAY) for Monday of semester start.
 If `plan-polsl-semester-start' is set, uses that date.
 Otherwise, auto-computes the appropriate semester start date."
-  (if-let ((custom (bound-and-true-p plan-polsl-semester-start)))
+  (if-let* ((custom (bound-and-true-p plan-polsl-semester-start)))
       (if (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)" custom)
           (list (string-to-number (match-string 1 custom))
                 (string-to-number (match-string 2 custom))
