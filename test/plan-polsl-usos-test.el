@@ -101,5 +101,14 @@
   (should-error (plan-polsl-usos--parse-response 500 "<html>")
                 :type 'plan-polsl-usos-error))
 
+(ert-deftest plan-polsl-usos-test-split-output ()
+  (should (equal (plan-polsl-usos--split-output
+                  (encode-coding-string "{\"a\": \"ż\"}\n200" 'utf-8))
+                 '(200 . "{\"a\": \"ż\"}")))
+  (should (equal (plan-polsl-usos--split-output "{}\n401") '(401 . "{}")))
+  ;; curl writes 000 when the connection fails
+  (should (equal (plan-polsl-usos--split-output "\n000") '(nil . "")))
+  (should (equal (plan-polsl-usos--split-output "") '(nil . ""))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

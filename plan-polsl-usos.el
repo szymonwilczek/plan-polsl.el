@@ -63,8 +63,13 @@ The file is created with permissions 0600. Use a name ending in
 
 (define-error 'plan-polsl-usos-error "Błąd USOS API")
 (define-error 'plan-polsl-usos-unauthorized
-              "Sesja USOS wygasła, zaloguj się ponownie (M-x plan-polsl-usos-login)"
+              "Odmowa dostępu USOS API"
               'plan-polsl-usos-error)
+
+(defcustom plan-polsl-usos-timeout 15
+  "Maximum seconds to wait for a single synchronous USOS API request."
+  :type 'integer
+  :group 'plan-polsl-usos)
 
 (defvar plan-polsl-usos--token 'unloaded
   "Cached access token plist, or the symbol `unloaded' before first read.")
@@ -167,6 +172,55 @@ any other failure, carrying the server message when there is one."
                    "")))
       (signal (if (eq status 401) 'plan-polsl-usos-unauthorized 'plan-polsl-usos-error)
               (list (format "HTTP %s: %s" status msg))))))
+
+(defun plan-polsl-usos--signed-url (method params &optional token)
+  "Return signed URL for USOS API METHOD with PARAMS.
+TOKEN is a plist with :token and :secret, or nil for consumer-only
+signing."
+  (let ((consumer (plan-polsl-usos--consumer)))
+    (plan-polsl-oauth-signed-url (plan-polsl-usos--url method)
+                                 params (car consumer) (cdr consumer)
+                                 (plist-get token :token)
+                                 (plist-get token :secret))))
+
+(defun plan-polsl-usos--curl-args (url)
+  "Return curl arguments fetching URL and appending the HTTP status code.
+url.el is not used because it swallows 401 responses carrying a
+\"WWW-Authenticate: OAuth\" header, hiding USOS error messages."
+  (list "-s" "--compressed"
+        "--max-time" (number-to-string plan-polsl-usos-timeout)
+        "-A" "Emacs plan-polsl.el (GNU Emacs)"
+        "-w" "\n%{http_code}"
+        url))
+
+(defun plan-polsl-usos--split-output (raw)
+  "Split raw curl output RAW into (STATUS . BODY).
+STATUS is the integer HTTP code written last by \"-w\", BODY the decoded
+UTF-8 response body."
+  (let* ((pos (string-match "\n\\([0-9]+\\)\\'" raw))
+         (status (and pos (string-to-number (match-string 1 raw))))
+         (body (decode-coding-string (substring raw 0 (or pos (length raw))) 'utf-8)))
+    (cons (if (and status (> status 0)) status nil) body)))
+
+(defun plan-polsl-usos--check-curl ()
+  "Signal `user-error' unless curl is available."
+  (unless (executable-find "curl")
+    (user-error "Integracja z USOS wymaga programu curl")))
+
+(defun plan-polsl-usos--call (method params &optional token form)
+  "Call USOS API METHOD with PARAMS synchronously and return the result.
+TOKEN and FORM are as in `plan-polsl-usos--signed-url' and
+`plan-polsl-usos--parse-response'."
+  (plan-polsl-usos--check-curl)
+  (let ((url (plan-polsl-usos--signed-url method params token)))
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (apply #'call-process "curl" nil t nil (plan-polsl-usos--curl-args url))
+      (let ((res (plan-polsl-usos--split-output (buffer-string))))
+        (unless (car res)
+          (signal 'plan-polsl-usos-error
+                  (list (format "Brak odpowiedzi z %s" (plan-polsl-usos--host)))))
+        (plan-polsl-usos--parse-response (car res) (cdr res) form)))))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
