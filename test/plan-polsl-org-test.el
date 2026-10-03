@@ -21,5 +21,15 @@
   (should (equal (plan-polsl-org--format-date-timestamp "2026-10-10" 6 "09:00" "12:00")
                  "<2026-10-10 sob 09:00-12:00>")))
 
+(ert-deftest plan-polsl-org-test-dated-entry ()
+  (let ((text (plan-polsl-org-format-entry
+               (list :day-index 1 :date "2026-10-05" :start-time "08:30" :end-time "10:00"
+                     :title "Analiza matematyczna" :type "Wykład" :biweekly t
+                     :teachers '("dr Jan Kowalski") :rooms '("301")))))
+    (should (string-match-p "^\\*\\* Analiza matematyczna - Wykład :wyklad:uczelnia:" text))
+    (should (string-match-p "<2026-10-05 pon 08:30-10:00>$" text))
+    (should-not (string-match-p "\\+[12]w" text))
+    (should (string-match-p ":PROWADZACY: dr Jan Kowalski" text))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

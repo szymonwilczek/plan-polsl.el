@@ -96,7 +96,10 @@ START-TIME and END-TIME are \"hh:mm\" strings."
          (sections (plist-get entry :sections))
          (teachers (plist-get entry :teachers))
          (rooms (plist-get entry :rooms))
-         (timestamp (plan-polsl-org--format-timestamp day-idx start-time end-time biweekly))
+         (date (plist-get entry :date))
+         (timestamp (if date
+                        (plan-polsl-org--format-date-timestamp date day-idx start-time end-time)
+                      (plan-polsl-org--format-timestamp day-idx start-time end-time biweekly)))
          (sec-str (if sections (concat " (sek. " (mapconcat #'identity sections ", ") ")") ""))
          (teachers-str (if teachers (mapconcat #'identity teachers ", ") "Brak danych"))
          (rooms-str (if rooms (mapconcat #'identity rooms ", ") "Brak danych")))
