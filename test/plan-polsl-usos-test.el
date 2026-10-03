@@ -149,5 +149,20 @@
      (should (equal (plan-polsl-usos--load-token)
                     '(:token "at" :secret "as" :user-id "777" :user-name "Jan Kowalski"))))))
 
+(ert-deftest plan-polsl-usos-test-logout ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-key "ck")
+         (revoked nil))
+     (plan-polsl-usos--save-token '(:token "at" :secret "as"))
+     ;; local token is removed even when the server call fails
+     (cl-letf (((symbol-function 'plan-polsl-usos--call)
+                (lambda (method _params token &rest _)
+                  (setq revoked (list method token))
+                  (signal 'plan-polsl-usos-error '("HTTP 500: down")))))
+       (plan-polsl-usos-logout))
+     (should (equal revoked '("services/oauth/revoke_token" (:token "at" :secret "as"))))
+     (should-not (plan-polsl-usos-logged-in-p))
+     (should-error (plan-polsl-usos-logout) :type 'user-error))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

@@ -311,5 +311,19 @@ shown there after logging in."
        (append token (list :user-id (alist-get 'id user) :user-name name)))
       (message "Zalogowano do USOS jako %s" name))))
 
+;;;###autoload
+(defun plan-polsl-usos-logout ()
+  "Revoke the USOS access token and delete it locally."
+  (interactive)
+  (let ((token (plan-polsl-usos--load-token)))
+    (unless token
+      (user-error "Nie jesteś zalogowany do USOS"))
+    (condition-case err
+        (plan-polsl-usos--call "services/oauth/revoke_token" nil token)
+      (error (message "Nie udało się unieważnić tokenu w USOS: %s"
+                      (plan-polsl-usos-error-message err))))
+    (plan-polsl-usos--delete-token)
+    (message "Wylogowano z USOS")))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
