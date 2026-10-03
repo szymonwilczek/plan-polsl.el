@@ -17,6 +17,8 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'auth-source)
+(require 'url-parse)
 (require 'plan-polsl-oauth)
 
 (defgroup plan-polsl-usos nil
@@ -63,6 +65,35 @@ The file is created with permissions 0600. Use a name ending in
   "Return the absolute URL of USOS API METHOD (e.g. \"services/tt/user\")."
   (let ((base plan-polsl-usos-base-url))
     (concat (if (string-suffix-p "/" base) base (concat base "/")) method)))
+
+(defun plan-polsl-usos--host ()
+  "Return the host name of `plan-polsl-usos-base-url'."
+  (url-host (url-generic-parse-url plan-polsl-usos-base-url)))
+
+(defun plan-polsl-usos--consumer-secret ()
+  "Return the consumer secret for `plan-polsl-usos-consumer-key'.
+Looks up an `auth-source' entry for the API host whose login is the
+consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
+  (or (when plan-polsl-usos-consumer-key
+        (when-let* ((found (car (auth-source-search
+                                 :host (plan-polsl-usos--host)
+                                 :user plan-polsl-usos-consumer-key
+                                 :max 1)))
+                    (secret (plist-get found :secret)))
+          (if (functionp secret) (funcall secret) secret)))
+      plan-polsl-usos-consumer-secret))
+
+(defun plan-polsl-usos--consumer ()
+  "Return (KEY . SECRET) of the configured consumer or signal `user-error'."
+  (let ((key plan-polsl-usos-consumer-key)
+        (secret (plan-polsl-usos--consumer-secret)))
+    (unless (and key (not (string-empty-p key)))
+      (user-error "Ustaw `plan-polsl-usos-consumer-key' (klucz z %sdevelopers/)"
+                  plan-polsl-usos-base-url))
+    (unless (and secret (not (string-empty-p secret)))
+      (user-error "Brak sekretu klucza USOS: dodaj wpis auth-source dla %s (login %s)"
+                  (plan-polsl-usos--host) key))
+    (cons key secret)))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
