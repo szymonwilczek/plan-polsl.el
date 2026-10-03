@@ -289,6 +289,7 @@
          (teachers-info (plist-get entry :teachers-info))
          (teachers (plist-get entry :teachers))
          (date (plist-get entry :date))
+         (building (plist-get entry :building))
          (first-target-pos nil))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
@@ -381,6 +382,10 @@
             (insert (format "  %-12s %s\n"
                             (propertize "Sala:" 'face 'font-lock-comment-face)
                             (propertize (mapconcat #'identity rooms ", ") 'face 'bold)))))
+        (when building
+          (insert (format "  %-12s %s\n"
+                          (propertize "Budynek:" 'face 'font-lock-comment-face)
+                          building)))
 
         ;; footer
         (insert "\n" (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n")
