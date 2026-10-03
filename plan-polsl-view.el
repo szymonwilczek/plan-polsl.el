@@ -60,6 +60,12 @@
   "Face for room, teacher, and section metadata."
   :group 'plan-polsl-faces)
 
+(defcustom plan-polsl-view-width nil
+  "Column at which long room, group and lecturer lists are wrapped.
+When nil, the width of the window showing the timetable is used."
+  :type '(choice (const :tag "Window width" nil) integer)
+  :group 'plan-polsl)
+
 (defvar-local plan-polsl-view-id nil
   "Buffer-local schedule identifier.")
 
@@ -223,8 +229,34 @@
          (padding (make-string (max 0 (- width sw)) ?\s)))
     (concat (or str "") padding)))
 
-(defun plan-polsl-view--format-entry-line (entry subject-col-width)
-  "Format propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH."
+(defun plan-polsl-view--wrap-meta (items width)
+  "Lay out meta ITEMS as lines at most WIDTH columns wide.
+Items are joined with \" • \" and broken between items or after the
+commas of a list, such as lecturers. A single part wider than WIDTH
+keeps its own line. When WIDTH is nil, everything stays on one line."
+  (if (null width)
+      (list (mapconcat #'identity items " • "))
+    (let ((lines nil) (line nil))
+      (dolist (item items)
+        (let* ((parts (split-string item ", "))
+               (n (length parts)))
+          (cl-loop for part in parts
+                   for k from 1
+                   for text = (if (< k n) (concat part ",") part)
+                   for sep = (if (= k 1) " • " " ")
+                   do (cond
+                       ((null line) (setq line text))
+                       ((<= (string-width (concat line sep text)) width)
+                        (setq line (concat line sep text)))
+                       (t (push line lines)
+                          (setq line text))))))
+      (when line (push line lines))
+      (nreverse lines))))
+
+(defun plan-polsl-view--format-entry-line (entry subject-col-width &optional width)
+  "Format propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH.
+Meta data that would not fit in WIDTH columns continues on further
+lines, aligned under the first one."
   (let* ((start (plist-get entry :start-time))
          (end (plist-get entry :end-time))
          (title (plist-get entry :title))
@@ -246,6 +278,8 @@
                     ""))
          (subj-full (concat title-str sec-str))
          (subj-padded (plan-polsl-view--pad-column subj-full subject-col-width))
+         (prefix (format "  %s  %s  %s" time-str badge subj-padded))
+         (indent (make-string (string-width prefix) ?\s))
          (meta-items nil))
     (when groups
       (push (format "Grupy: %s" (mapconcat #'identity groups ", ")) meta-items))
@@ -253,11 +287,15 @@
       (push (format "Sala: %s" (mapconcat #'identity rooms ", ")) meta-items))
     (when teachers
       (push (format "Prow: %s" (mapconcat #'identity teachers ", ")) meta-items))
-    (let ((meta-display (if meta-items
-                            (propertize (concat " │ " (mapconcat #'identity (nreverse meta-items) " • "))
-                                        'face 'plan-polsl-meta-face)
-                          "")))
-      (format "  %s  %s  %s%s" time-str badge subj-padded meta-display))))
+    (if (null meta-items)
+        prefix
+      (let ((lines (plan-polsl-view--wrap-meta
+                    (nreverse meta-items)
+                    (and width (max 20 (- width (string-width prefix) 3))))))
+        (concat prefix
+                (mapconcat (lambda (l) (propertize (concat " │ " l) 'face 'plan-polsl-meta-face))
+                           lines
+                           (concat "\n" indent)))))))
 
 (defun plan-polsl-view--teacher-name (tid initials)
   "Lookup full teacher name for TID in O(1) time with fallback to INITIALS."
@@ -490,6 +528,14 @@
           (setq max-w (max max-w len)))))
     max-w))
 
+(defun plan-polsl-view--width (buf)
+  "Return the column limit for rendering BUF.
+Uses `plan-polsl-view-width', else the body width of a window showing
+BUF or the selected window, minus one column for the continuation
+glyph."
+  (or plan-polsl-view-width
+      (1- (window-body-width (or (get-buffer-window buf t) (selected-window))))))
+
 (defun plan-polsl-view--render-buffer (entries meta id type-val monday-time &optional target-buf)
   "Render ENTRIES and META for ID, TYPE-VAL and MONDAY-TIME into TARGET-BUF."
   (let* ((buf-name (or target-buf (plan-polsl-view--buffer-name id type-val meta)))
@@ -501,6 +547,7 @@
          (week-cycle (plist-get week-info :cycle))
          (day-groups (plan-polsl-view--filter-week-entries entries monday-time week-cycle))
          (max-subj-w (plan-polsl-view--compute-subject-width day-groups))
+         (width (plan-polsl-view--width buf))
          (rendered-days (make-vector 7 nil))
          (all-lines nil)
          (header-line-1 (if path (format "%s" path) ""))
@@ -518,9 +565,10 @@
     (dotimes (i 7)
       (let ((day-lines nil))
         (dolist (e (aref day-groups i))
-          (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w)))
+          (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w width)))
             (push line-str day-lines)
-            (push (substring-no-properties line-str) all-lines)))
+            (dolist (l (split-string (substring-no-properties line-str) "\n"))
+              (push l all-lines))))
         (aset rendered-days i (nreverse day-lines))))
 
     (let* ((max-w (max 75 (apply #'max (mapcar #'string-width all-lines))))

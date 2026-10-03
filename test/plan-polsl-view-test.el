@@ -211,6 +211,32 @@
             (should (eq (plist-get w1 :cycle) 'odd))))
       (delete-directory dir t))))
 
+(ert-deftest plan-polsl-view-test-wrap-meta ()
+  (should (equal (plan-polsl-view--wrap-meta '("Sala: 827" "Prow: A B, C D") nil)
+                 '("Sala: 827 • Prow: A B, C D")))
+  (should (equal (plan-polsl-view--wrap-meta '("Sala: 827" "Prow: Dr A, Dr B, Dr C") 20)
+                 '("Sala: 827" "Prow: Dr A, Dr B," "Dr C")))
+  ;; lists break after commas, never inside a name
+  (should (equal (plan-polsl-view--wrap-meta
+                  '("Grupy: gr. 10" "Prow: Dr hab. inż. Adam Ziębiński, Dr inż. Dariusz Caban") 30)
+                 '("Grupy: gr. 10"
+                   "Prow: Dr hab. inż. Adam Ziębiński,"
+                   "Dr inż. Dariusz Caban"))))
+
+(ert-deftest plan-polsl-view-test-wrapped-entry-alignment ()
+  (let* ((entry (list :start-time "11:00" :end-time "14:00" :title "Budowa komputerów"
+                      :type "Laboratorium" :groups '("gr. 10") :rooms '("827")
+                      :teachers '("Dr hab. inż. Adam Ziębiński" "Dr hab. inż. Michał Maćkowski"
+                                  "Dr inż. Dariusz Caban" "Dr hab. inż. Rafał Cupek")))
+         (lines (split-string (plan-polsl-view--format-entry-line entry 20 100) "\n"))
+         (bar (string-match " │ " (car lines))))
+    (should (> (length lines) 1))
+    (dolist (l lines)
+      (should (<= (string-width l) 100))
+      (should (eq (string-match " │ " l) bar)))
+    (dolist (l (cdr lines))
+      (should (string-blank-p (substring l 0 bar))))))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))
