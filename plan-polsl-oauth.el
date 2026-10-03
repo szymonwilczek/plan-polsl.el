@@ -45,5 +45,28 @@ Both KEY and MESSAGE are encoded as UTF-8 when multibyte."
                  (concat opad (secure-hash 'sha1 (concat ipad message) nil nil t))
                  nil nil t)))
 
+(defun plan-polsl-oauth-normalize-params (params)
+  "Return PARAMS alist normalized per RFC 5849 section 3.4.1.3.2.
+Names and values are percent-encoded, sorted by name then value, and
+joined as name=value pairs separated by ampersands."
+  (let ((pairs (mapcar (lambda (p)
+                         (cons (plan-polsl-oauth-encode (car p))
+                               (plan-polsl-oauth-encode (cdr p))))
+                       params)))
+    (mapconcat (lambda (p) (concat (car p) "=" (cdr p)))
+               (sort pairs (lambda (a b)
+                             (if (string= (car a) (car b))
+                                 (string< (cdr a) (cdr b))
+                               (string< (car a) (car b)))))
+               "&")))
+
+(defun plan-polsl-oauth-base-string (method url params)
+  "Return the signature base string for METHOD, URL and PARAMS.
+URL must not contain a query string; PARAMS is an alist holding both
+request and oauth_* parameters (RFC 5849 section 3.4.1)."
+  (concat (upcase method)
+          "&" (plan-polsl-oauth-encode url)
+          "&" (plan-polsl-oauth-encode (plan-polsl-oauth-normalize-params params))))
+
 (provide 'plan-polsl-oauth)
 ;;; plan-polsl-oauth.el ends here
