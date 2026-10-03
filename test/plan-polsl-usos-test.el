@@ -173,5 +173,16 @@
   (let ((plan-polsl-usos-language "en"))
     (should (equal (plan-polsl-usos--lang '((pl . "Wykład") (en . "Lecture"))) "Lecture"))))
 
+(ert-deftest plan-polsl-usos-test-frequency ()
+  (should (eq (plan-polsl-usos--frequency-cycle "every_week") 'weekly))
+  (should (eq (plan-polsl-usos--frequency-cycle "every_fortnight_odd") 'odd))
+  (should (eq (plan-polsl-usos--frequency-cycle "every_fortnight_even") 'even))
+  (should-not (plan-polsl-usos--frequency-cycle "once"))
+  (should-not (plan-polsl-usos--frequency-cycle nil))
+  (should (plan-polsl-usos--biweekly-p "every_fortnight"))
+  (should (plan-polsl-usos--biweekly-p "every_fortnight_odd"))
+  (should-not (plan-polsl-usos--biweekly-p "every_week"))
+  (should-not (plan-polsl-usos--biweekly-p nil)))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

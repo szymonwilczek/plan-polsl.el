@@ -340,5 +340,20 @@ back to Polish, English, then any non-empty value."
                                    (cdr kv)))
                  langdict))))
 
+(defun plan-polsl-usos--frequency-cycle (frequency)
+  "Map USOS FREQUENCY code to a cycle symbol used by the timetable view.
+Returns `weekly', `odd', `even' or nil when the code says nothing
+about the weekly rhythm."
+  (pcase frequency
+    ("every_week" 'weekly)
+    ("every_fortnight_odd" 'odd)
+    ("every_fortnight_even" 'even)
+    (_ nil)))
+
+(defun plan-polsl-usos--biweekly-p (frequency)
+  "Return non-nil when USOS FREQUENCY code denotes classes every two weeks."
+  (and (stringp frequency)
+       (string-prefix-p "every_fortnight" frequency)))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
