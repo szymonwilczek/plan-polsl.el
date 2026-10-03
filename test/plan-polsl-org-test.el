@@ -60,5 +60,25 @@
   (should (equal (plan-polsl-org--type-to-tag "Egzamin") "egzamin"))
   (should (equal (plan-polsl-org--type-to-tag nil) "zajecia")))
 
+(ert-deftest plan-polsl-org-test-dated-document ()
+  (let ((doc (plan-polsl-org-generate-dated-document
+              (list (list :day-index 1 :date "2026-10-05" :start-time "08:30" :end-time "10:00"
+                          :title "AiR" :type "Wykład")
+                    (list :day-index 1 :date "2026-10-05" :start-time "10:15" :end-time "11:45"
+                          :title "PSy" :type "Laboratorium")
+                    (list :day-index 6 :date "2026-10-10" :start-time "09:00" :end-time "12:00"
+                          :title "Zjazd" :type "Ćwiczenia"))
+              "Jan Kowalski")))
+    (should (string-prefix-p "#+title: Plan Zajęć Politechniki Śląskiej - Jan Kowalski\n" doc))
+    (should (string-match-p
+             "\\* Poniedziałek 05.10.2026\n\n\\*\\* AiR[^\0]*\\*\\* PSy[^\0]*\\* Sobota 10.10.2026\n\n\\*\\* Zjazd"
+             doc))
+    (should (= (with-temp-buffer
+                 (insert doc)
+                 (count-matches "^\\* " (point-min) (point-max)))
+               2)))
+  (should (string-match-p "Brak zaplanowanych zajęć"
+                          (plan-polsl-org-generate-dated-document nil))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

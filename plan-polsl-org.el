@@ -146,6 +146,26 @@ START-TIME and END-TIME are \"hh:mm\" strings."
             (setq out (concat out "  Brak zaplanowanych zajęć.\n\n")))))
       out)))
 
+(defun plan-polsl-org-generate-dated-document (entries &optional title-info)
+  "Generate an Org document for dated ENTRIES (from USOS) and TITLE-INFO.
+ENTRIES must be sorted chronologically; each date gets its own heading."
+  (let ((out (format "#+title: Plan Zajęć Politechniki Śląskiej - %s\n#+author: plan-polsl.el (USOS)\n#+category: PolSL\n#+startup: overview\n#+filetags: :polsl:uczelnia:\n\n"
+                     (or title-info "Plan Zajęć")))
+        (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek" "Sobota" "Niedziela"])
+        (current-date nil))
+    (if (null entries)
+        (concat out "Brak zaplanowanych zajęć.\n")
+      (dolist (e entries)
+        (let ((date (plist-get e :date)))
+          (unless (equal date current-date)
+            (setq current-date date)
+            (setq out (concat out (format "* %s %s\n\n"
+                                          (aref day-names (1- (plist-get e :day-index)))
+                                          (format-time-string
+                                           "%d.%m.%Y" (date-to-time (concat date " 12:00")))))))
+          (setq out (concat out (plan-polsl-org-format-entry e)))))
+      out)))
+
 (defun plan-polsl-org-register-in-agenda (file)
   "Add FILE to `org-agenda-files' if not already registered."
   (let ((expanded (expand-file-name file)))
