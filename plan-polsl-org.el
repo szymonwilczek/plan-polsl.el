@@ -11,6 +11,7 @@
 
 (require 'cl-lib)
 (require 'time-date)
+(require 'plan-polsl-semester)
 
 (defvar org-agenda-files)
 
@@ -18,45 +19,11 @@
   ["pon" "wto" "śro" "czw" "pią" "sob" "nie"]
   "Short day of week names used in Org active timestamps.")
 
-(defun plan-polsl-org--auto-semester-monday ()
-  "Determine the starting Monday of the semester based on current date."
-  (let* ((now (decode-time))
-         (cur-year (nth 5 now))
-         (cur-month (nth 4 now))
-         ;; winter semester begins in October
-         ;; Jan/Feb belongs to previous year's winter semester
-         (target-year (if (<= cur-month 2) (1- cur-year) cur-year))
-         (target-month 10)
-
-         ;; find first Monday in October
-         (oct-1-time (encode-time 0 0 12 1 target-month target-year))
-         (oct-1-dow (nth 6 (decode-time oct-1-time))) ; 0=Sun, 1=Mon ... 6=Sat
-         (days-to-first-mon (cond
-                             ((= oct-1-dow 1) 0) ; Oct 1 is Monday
-                             ((= oct-1-dow 0) 1) ; Oct 1 is Sunday -> Oct 2 is Monday
-                             (t (- 8 oct-1-dow)))) ; Oct 1 is Tue-Sat -> first Monday is (8 - dow)
-         (first-mon-time (time-add oct-1-time (days-to-time days-to-first-mon)))
-         (dec (decode-time first-mon-time)))
-    (list (nth 5 dec) (nth 4 dec) (nth 3 dec))))
-
-(defun plan-polsl-org--get-base-monday ()
-  "Compute date components (YEAR MONTH DAY) for Monday of semester start.
-If `plan-polsl-semester-start' is set, uses that date.
-Otherwise, auto-computes the appropriate semester start date."
-  (if-let* ((custom (bound-and-true-p plan-polsl-semester-start)))
-      (if (string-match "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)" custom)
-          (list (string-to-number (match-string 1 custom))
-                (string-to-number (match-string 2 custom))
-                (string-to-number (match-string 3 custom)))
-        (plan-polsl-org--auto-semester-monday))
-    (plan-polsl-org--auto-semester-monday)))
-
 (defun plan-polsl-org--format-timestamp (day-index start-time end-time &optional biweekly)
   "Format an active recurring Org timestamp for DAY-INDEX, START-TIME, END-TIME."
-  (let* ((monday (plan-polsl-org--get-base-monday))
-         (day-offset (1- day-index))
-         (monday-encoded (encode-time 0 0 12 (nth 2 monday) (nth 1 monday) (nth 0 monday)))
-         (target-time (time-add monday-encoded (days-to-time day-offset)))
+  (let* ((day-offset (1- day-index))
+         (target-time (time-add (plan-polsl-semester-first-monday)
+                                (days-to-time day-offset)))
          (dec (decode-time target-time))
          (year (nth 5 dec))
          (month (nth 4 dec))

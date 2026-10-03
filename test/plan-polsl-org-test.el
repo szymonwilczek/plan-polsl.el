@@ -5,15 +5,34 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'plan-polsl)
 
+;; never read the semester start saved by the developer running the tests
+(setq plan-polsl-semester-file
+      (expand-file-name "plan-polsl-test-none/semester.eld" temporary-file-directory))
+
+(defmacro plan-polsl-org-test--on (year month day &rest body)
+  "Run BODY as if today were YEAR-MONTH-DAY."
+  (declare (indent 3))
+  `(let ((now (encode-time 0 0 12 ,day ,month ,year)))
+     (cl-letf (((symbol-function 'current-time) (lambda () now)))
+       ,@body)))
+
 (ert-deftest plan-polsl-org-test-recurring-timestamp ()
-  (let ((plan-polsl-semester-start "2026-10-05"))
-    (should (equal (plan-polsl-org--format-timestamp 3 "10:15" "11:45")
-                   "<2026-10-07 śro 10:15-11:45 +1w>"))
-    (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00" t)
-                   "<2026-10-05 pon 08:30-10:00 +2w>"))))
+  (plan-polsl-org-test--on 2026 10 3
+                           (let ((plan-polsl-semester-start "2026-10-05"))
+                             (should (equal (plan-polsl-org--format-timestamp 3 "10:15" "11:45")
+                                            "<2026-10-07 śro 10:15-11:45 +1w>"))
+                             (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00" t)
+                                            "<2026-10-05 pon 08:30-10:00 +2w>")))))
+
+(ert-deftest plan-polsl-org-test-base-monday-in-summer ()
+  ;; the summer semester no longer falls back to October
+  (plan-polsl-org-test--on 2027 4 15
+                           (should (equal (plan-polsl-org--format-timestamp 2 "08:30" "10:00")
+                                          "<2027-03-02 wto 08:30-10:00 +1w>"))))
 
 (ert-deftest plan-polsl-org-test-date-timestamp ()
   (should (equal (plan-polsl-org--format-date-timestamp "2026-10-05" 1 "08:30" "10:00")
