@@ -129,6 +129,14 @@ The access token is stored in ~plan-polsl-usos-token-file~ (~~/.emacs.d/plan-pol
 
 Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 
+*** How it behaves
+- *Default timetable:* while logged in, ~M-x plan-polsl~ opens your USOS timetable in the ~*Plan PolSL: USOS*~ buffer. ~C-u M-x plan-polsl~ opens the plan.polsl.pl timetable of ~plan-polsl-id~ instead.
+- *Week by week:* USOS serves one week per request, so ~<~ / ~>~ / ~w~ / ~t~ fetch weeks on demand. Visited weeks are cached; ~r~ fetches again.
+- *Exact dates:* entries are real meetings, so holidays, cancelled classes and exams are reflected. Saturday and Sunday appear when they have classes.
+- *Details:* ~RET~ shows the date, cycle, lecturers, room, building and a link to the class page in USOSweb.
+- *Org-Agenda:* ~M-x plan-polsl-sync~ (or ~s~) exports ~plan-polsl-usos-sync-weeks~ weeks from the current one, with plain (non-repeating) timestamps grouped by date.
+- Set ~plan-polsl-usos-default~ to ~nil~ to keep plan.polsl.pl as the default; the USOS timetable is then available with ~M-x plan-polsl-usos~.
+
 ** Interactive Commands
 
 | Command                         | Description                                                            |
