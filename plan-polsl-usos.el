@@ -17,6 +17,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'subr-x)
 (require 'auth-source)
 (require 'url-parse)
 (require 'plan-polsl-oauth)
