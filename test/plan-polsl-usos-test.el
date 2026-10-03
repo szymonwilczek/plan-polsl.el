@@ -117,5 +117,37 @@
   (should (equal (plan-polsl-usos-error-message '(user-error "Brak"))
                  "Brak")))
 
+(ert-deftest plan-polsl-usos-test-login-flow ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-consumer-key "ck")
+         (plan-polsl-usos-consumer-secret "cs")
+         (calls nil)
+         (opened nil)
+         (kill-ring nil))
+     (cl-letf (((symbol-function 'browse-url) (lambda (url &rest _) (setq opened url)))
+               ((symbol-function 'read-string) (lambda (&rest _) " 12345 "))
+               ((symbol-function 'plan-polsl-usos--call)
+                (lambda (method params &optional token _form)
+                  (push (list method params token) calls)
+                  (pcase method
+                    ("services/oauth/request_token"
+                     '(("oauth_token" . "rt") ("oauth_token_secret" . "rs")))
+                    ("services/oauth/access_token"
+                     '(("oauth_token" . "at") ("oauth_token_secret" . "as")))
+                    ("services/users/user"
+                     '((id . "777") (first_name . "Jan") (last_name . "Kowalski")))))))
+       (plan-polsl-usos-login))
+     (should (equal opened "https://usosapi.polsl.pl/services/oauth/authorize?oauth_token=rt"))
+     (setq calls (nreverse calls))
+     (should (equal (cadr (nth 0 calls))
+                    '(("oauth_callback" . "oob") ("scopes" . "studies|offline_access"))))
+     (should (equal (nth 1 calls)
+                    '("services/oauth/access_token" (("oauth_verifier" . "12345"))
+                      (:token "rt" :secret "rs"))))
+     (should (equal (nth 2 (nth 2 calls)) '(:token "at" :secret "as")))
+     (setq plan-polsl-usos--token 'unloaded)
+     (should (equal (plan-polsl-usos--load-token)
+                    '(:token "at" :secret "as" :user-id "777" :user-name "Jan Kowalski"))))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

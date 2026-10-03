@@ -71,6 +71,11 @@ The file is created with permissions 0600. Use a name ending in
   :type 'integer
   :group 'plan-polsl-usos)
 
+(defconst plan-polsl-usos-scopes "studies|offline_access"
+  "OAuth scopes requested at login.
+`studies' grants access to the personal timetable, `offline_access'
+makes the access token long-lived instead of expiring within hours.")
+
 (defvar plan-polsl-usos--token 'unloaded
   "Cached access token plist, or the symbol `unloaded' before first read.")
 
@@ -263,6 +268,48 @@ condition, e.g. (plan-polsl-usos-unauthorized \"HTTP 401: ...\")."
            (if failure
                (funcall errback failure)
              (funcall callback result))))))))
+
+(defun plan-polsl-usos--authorize-url (request-token)
+  "Return the USOS page URL where the user authorizes REQUEST-TOKEN."
+  (concat (plan-polsl-usos--url "services/oauth/authorize")
+          "?oauth_token=" (plan-polsl-oauth-encode request-token)))
+
+;;;###autoload
+(defun plan-polsl-usos-login ()
+  "Log in to USOS with the OAuth PIN flow and store the access token.
+Opens the USOS authorization page in a browser, then asks for the PIN
+shown there after logging in."
+  (interactive)
+  (plan-polsl-usos--consumer)
+  (let* ((request (plan-polsl-usos--call
+                   "services/oauth/request_token"
+                   `(("oauth_callback" . "oob")
+                     ("scopes" . ,plan-polsl-usos-scopes))
+                   nil t))
+         (rtoken (cdr (assoc "oauth_token" request)))
+         (rsecret (cdr (assoc "oauth_token_secret" request)))
+         (auth-url (plan-polsl-usos--authorize-url rtoken)))
+    (kill-new auth-url)
+    (browse-url auth-url)
+    (let* ((pin (string-trim
+                 (read-string "Zaloguj się w przeglądarce i wklej PIN z USOS: ")))
+           (_ (when (string-empty-p pin)
+                (user-error "Nie podano kodu PIN")))
+           (access (plan-polsl-usos--call
+                    "services/oauth/access_token"
+                    `(("oauth_verifier" . ,pin))
+                    (list :token rtoken :secret rsecret) t))
+           (token (list :token (cdr (assoc "oauth_token" access))
+                        :secret (cdr (assoc "oauth_token_secret" access))))
+           (user (plan-polsl-usos--call "services/users/user"
+                                        '(("fields" . "id|first_name|last_name"))
+                                        token))
+           (name (string-join (delq nil (list (alist-get 'first_name user)
+                                              (alist-get 'last_name user)))
+                              " ")))
+      (plan-polsl-usos--save-token
+       (append token (list :user-id (alist-get 'id user) :user-name name)))
+      (message "Zalogowano do USOS jako %s" name))))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
