@@ -608,8 +608,13 @@ ID defaults to `plan-polsl-id'.
 TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room).
 TYPE `usos' shows the personal USOS timetable via `plan-polsl-usos'.
 If REFRESH is non-nil, forces re-fetching from network.
-MONDAY specifies the active week's Monday (defaults to current week)."
-  (interactive "P")
+MONDAY specifies the active week's Monday (defaults to current week).
+Interactively, a prefix argument skips USOS and opens the
+plan.polsl.pl timetable of `plan-polsl-id' (prompting when unset)."
+  (interactive
+   (when current-prefix-arg
+     (list (or (bound-and-true-p plan-polsl-id)
+               (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))))
   (if (or (eq type 'usos)
           (and (null id) (null type)
                plan-polsl-usos-default
