@@ -86,6 +86,14 @@
         (should (equal opened "https://usosweb.polsl.pl/group")))
       (kill-buffer "*Plan PolSL: Szczegóły*"))))
 
+(ert-deftest plan-polsl-view-test-usos-buffer-name ()
+  (should (equal (plan-polsl-view--buffer-name "usos" 'usos '(:title "Jan Kowalski"))
+                 "*Plan PolSL: USOS*"))
+  (let ((plan-polsl-id "123"))
+    (should (equal (plan-polsl-view--buffer-name "123" 0 nil) "*Plan PolSL*"))
+    (should (equal (plan-polsl-view--buffer-name "9" 0 '(:title "Sala 301"))
+                   "*Plan PolSL: Sala 301*"))))
+
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
     (should-error (plan-polsl-next-week) :type 'user-error)))

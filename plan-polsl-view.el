@@ -62,7 +62,7 @@
   "Buffer-local schedule identifier.")
 
 (defvar-local plan-polsl-view-type 0
-  "Buffer-local schedule type (0=group, 10=teacher, 20=room).")
+  "Buffer-local schedule type (0=group, 10=teacher, 20=room, `usos').")
 
 (defvar-local plan-polsl-view-entries nil
   "Buffer-local list of parsed timetable entries.")
@@ -460,15 +460,17 @@
             "[TAB / S-TAB] Następne/poprzednie zajęcia | "
             "[Enter] Szczegóły | [r] Odśwież | [s] Sync | [q] Zamknij")))
 
-(defun plan-polsl-view--buffer-name (id _type-val meta)
-  "Generate appropriate buffer name for ID, _TYPE-VAL, and META."
+(defun plan-polsl-view--buffer-name (id type-val meta)
+  "Generate appropriate buffer name for ID, TYPE-VAL, and META."
   (let ((default-id (bound-and-true-p plan-polsl-id))
         (title (plist-get meta :title)))
-    (if (and default-id (string-equal (format "%s" id) (format "%s" default-id)))
-        "*Plan PolSL*"
-      (if (and title (> (length title) 0))
-          (format "*Plan PolSL: %s*" title)
-        (format "*Plan PolSL: %s*" id)))))
+    (cond
+     ((eq type-val 'usos) "*Plan PolSL: USOS*")
+     ((and default-id (string-equal (format "%s" id) (format "%s" default-id)))
+      "*Plan PolSL*")
+     ((and title (> (length title) 0))
+      (format "*Plan PolSL: %s*" title))
+     (t (format "*Plan PolSL: %s*" id)))))
 
 (defun plan-polsl-view--filter-week-entries (entries monday-time week-cycle)
   "Group ENTRIES into 7 day vectors for the week at MONDAY-TIME and WEEK-CYCLE."
@@ -510,7 +512,9 @@
          (rendered-days (make-vector 7 nil))
          (all-lines nil)
          (header-line-1 (if path (format "%s" path) ""))
-         (header-line-2 (format "Plan Zajęć: %s (ID: %s)" title id))
+         (header-line-2 (if (eq type-val 'usos)
+                            (format "Plan Zajęć: %s (USOS)" title)
+                          (format "Plan Zajęć: %s (ID: %s)" title id)))
          (header-line-3 (format "Tydzień: %s" week-label))
          (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [w] Tydzień   [< / >] Tygodnie   [?] Pomoc"))
 
