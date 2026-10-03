@@ -42,5 +42,17 @@
     (should (string-match-p ":CYKL: Pojedynczy termin" once))
     (should (string-match-p ":CYKL: Co tydzień" weekly))))
 
+(ert-deftest plan-polsl-org-test-usos-properties ()
+  (let ((text (plan-polsl-org-format-entry
+               (list :day-index 1 :date "2026-10-05" :start-time "08:30" :end-time "10:00"
+                     :title "AiR" :type "Wykład" :rooms '("301")
+                     :building "Wydział AEiI" :url "https://usosweb.polsl.pl/g")))
+        (plain (plan-polsl-org-format-entry
+                (list :day-index 1 :start-time "08:30" :end-time "10:00"
+                      :title "AiR" :type "Wykład"))))
+    (should (string-match-p ":SALA: 301\n   :BUDYNEK: Wydział AEiI\n" text))
+    (should (string-match-p ":URL: https://usosweb.polsl.pl/g\n   :END:" text))
+    (should-not (string-match-p "BUDYNEK\\|URL" plain))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

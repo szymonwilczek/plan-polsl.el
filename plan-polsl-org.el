@@ -103,17 +103,23 @@ START-TIME and END-TIME are \"hh:mm\" strings."
          (sec-str (if sections (concat " (sek. " (mapconcat #'identity sections ", ") ")") ""))
          (teachers-str (if teachers (mapconcat #'identity teachers ", ") "Brak danych"))
          (rooms-str (if rooms (mapconcat #'identity rooms ", ") "Brak danych")))
-    (format "** %s%s - %s :%s:uczelnia:\n   %s\n   :PROPERTIES:\n   :TYP: %s\n   :SALA: %s\n   :PROWADZACY: %s\n%s   :CYKL: %s\n   :END:\n\n"
+    (format "** %s%s - %s :%s:uczelnia:\n   %s\n   :PROPERTIES:\n   :TYP: %s\n   :SALA: %s\n%s   :PROWADZACY: %s\n%s   :CYKL: %s\n%s   :END:\n\n"
             title sec-str type tag
             timestamp
             type
             rooms-str
+            (if-let* ((building (plist-get entry :building)))
+                (format "   :BUDYNEK: %s\n" building)
+              "")
             teachers-str
             (if sections (format "   :SEKCJA: %s\n" (mapconcat #'identity sections ", ")) "")
             (cond
              (biweekly "Co 2 tygodnie (*)")
              ((and date (not (eq (plist-get entry :cycle) 'weekly))) "Pojedynczy termin")
-             (t "Co tydzień")))))
+             (t "Co tydzień"))
+            (if-let* ((url (plist-get entry :url)))
+                (format "   :URL: %s\n" url)
+              ""))))
 
 (defun plan-polsl-org-generate-document (entries &optional title-info)
   "Generate complete Org-mode document string for ENTRIES and TITLE-INFO."
