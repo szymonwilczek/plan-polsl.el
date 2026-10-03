@@ -45,6 +45,11 @@
     )
   "Standard class block boundary minutes from midnight.")
 
+(defun plan-polsl-parser--dom-texts (node &optional separator)
+  "Return all text of NODE joined with SEPARATOR."
+  (with-suppressed-warnings ((obsolete dom-texts))
+    (dom-texts node separator)))
+
 (defun plan-polsl-parser--style-prop (style prop &optional default)
   "Extract numerical or string value for CSS PROP in STYLE.
 If DEFAULT is a number, returns integer; otherwise returns string."
@@ -133,14 +138,14 @@ If DEFAULT is a number, returns integer; otherwise returns string."
   (delq nil (mapcar (lambda (a)
                       (let ((href (or (dom-attr a 'href) "")))
                         (when (string-match-p type-pattern href)
-                          (string-trim (dom-texts a)))))
+                          (string-trim (plan-polsl-parser--dom-texts a)))))
                     (dom-by-tag div 'a))))
 
 (defun plan-polsl-parser--extract-teachers-info (div)
   "Extract structured list of (:id ID :initials INITIALS) for teachers in DIV."
   (delq nil (mapcar (lambda (a)
                       (let ((href (or (dom-attr a 'href) ""))
-                            (initials (string-trim (dom-texts a))))
+                            (initials (string-trim (plan-polsl-parser--dom-texts a))))
                         (when (and (string-match "type=10&id=\\([0-9]+\\)" href)
                                    (> (length initials) 0))
                           (list :id (match-string 1 href)
@@ -151,7 +156,7 @@ If DEFAULT is a number, returns integer; otherwise returns string."
   "Extract structured list of (:id ID :name NAME) for rooms in DIV."
   (delq nil (mapcar (lambda (a)
                       (let ((href (or (dom-attr a 'href) ""))
-                            (rname (string-trim (dom-texts a))))
+                            (rname (string-trim (plan-polsl-parser--dom-texts a))))
                         (when (and (string-match "type=20&id=\\([0-9]+\\)" href)
                                    (> (length rname) 0))
                           (list :id (match-string 1 href)
@@ -214,7 +219,7 @@ Returns list of structured class entries."
          (divs (dom-by-class dom "^coursediv$"))
          (entries nil))
     (dolist (div divs)
-      (let* ((raw-text (dom-texts div " "))
+      (let* ((raw-text (plan-polsl-parser--dom-texts div " "))
              (trimmed (string-trim (or raw-text ""))))
         (when (> (length trimmed) 1)
           (let* ((style (or (dom-attr div 'style) ""))
