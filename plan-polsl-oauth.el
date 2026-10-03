@@ -98,5 +98,15 @@ NONCE and TIMESTAMP default to fresh values and exist for testing."
                      t)))
     (append all `(("oauth_signature" . ,signature)))))
 
+(defun plan-polsl-oauth-signed-url (url params consumer-key consumer-secret
+                                        &optional token token-secret)
+  "Return URL with PARAMS and an OAuth 1.0a signature in its query string.
+The request is signed for the GET method. CONSUMER-KEY, CONSUMER-SECRET,
+TOKEN and TOKEN-SECRET are passed to `plan-polsl-oauth-sign'."
+  (concat url "?"
+          (plan-polsl-oauth-normalize-params
+           (plan-polsl-oauth-sign "GET" url params consumer-key consumer-secret
+                                  token token-secret))))
+
 (provide 'plan-polsl-oauth)
 ;;; plan-polsl-oauth.el ends here

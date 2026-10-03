@@ -75,5 +75,14 @@
     (should (= (length (cdr (assoc "oauth_nonce" signed))) 32))
     (should (assoc "oauth_signature" signed))))
 
+(ert-deftest plan-polsl-oauth-test-signed-url ()
+  (let ((url (plan-polsl-oauth-signed-url "https://example.com/services/tt/user"
+                                          '(("fields" . "start_time|name"))
+                                          "key" "secret" "tok" "toksecret")))
+    (should (string-prefix-p "https://example.com/services/tt/user?fields=start_time%7Cname&" url))
+    (should (string-match-p "&oauth_token=tok&" url))
+    (should (string-match-p "&oauth_signature=[^&]+" url))
+    (should-not (string-match-p "toksecret" url))))
+
 (provide 'plan-polsl-oauth-test)
 ;;; plan-polsl-oauth-test.el ends here
