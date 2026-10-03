@@ -152,13 +152,18 @@ Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 
 ** Interactive Commands
 
-| Command                         | Description                                                            |
-|---------------------------------+------------------------------------------------------------------------|
-| ~M-x plan-polsl~                  | Open timetable buffer for your configured default schedule.            |
-| ~M-x plan-polsl-search~           | Search for any teacher, group, or room timetable.                      |
-| ~M-x plan-polsl-refresh-teachers~ | Force update the local cache of academic teachers from plan.polsl.pl.  |
-| ~M-x plan-polsl-sync~             | Download and update your schedule in the Org-mode file for Org-Agenda. |
-| ~M-x plan-polsl-open-plan~        | Open the generated ~plan-polsl.org~ file.                                |
+| Command                         | Description                                                             |
+|---------------------------------+-------------------------------------------------------------------------|
+| ~M-x plan-polsl~                  | Open timetable buffer for your default schedule (USOS when logged in).  |
+| ~C-u M-x plan-polsl~              | Open the plan.polsl.pl timetable of ~plan-polsl-id~, even when logged in. |
+| ~M-x plan-polsl-search~           | Search for any teacher, group, or room timetable.                       |
+| ~M-x plan-polsl-refresh-teachers~ | Force update the local cache of academic teachers from plan.polsl.pl.   |
+| ~M-x plan-polsl-sync~             | Download and update your schedule in the Org-mode file for Org-Agenda.  |
+| ~M-x plan-polsl-open-plan~        | Open the generated ~plan-polsl.org~ file.                                 |
+| ~M-x plan-polsl-usos-login~       | Log in to USOS (opens the browser, asks for the PIN).                   |
+| ~M-x plan-polsl-usos-logout~      | Revoke and delete the stored USOS token.                                |
+| ~M-x plan-polsl-usos~             | Open the personal USOS timetable regardless of ~plan-polsl-usos-default~. |
+| ~M-x plan-polsl-usos-sync~        | Export the USOS timetable to Org regardless of ~plan-polsl-usos-default~. |
 
 ** Author & License
 
