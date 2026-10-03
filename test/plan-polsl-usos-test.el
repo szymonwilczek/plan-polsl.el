@@ -195,5 +195,60 @@
   (should (= (plan-polsl-usos--iso-day "2026-10-09") 5))
   (should (= (plan-polsl-usos--iso-day "2026-10-11") 7)))
 
+(defconst plan-polsl-usos-test--activities-json
+  "[{\"type\": \"classgroup\",
+     \"start_time\": \"2026-10-05 08:30:00\", \"end_time\": \"2026-10-05 10:00:00\",
+     \"name\": {\"pl\": \"Analiza matematyczna - Wykład\", \"en\": \"Calculus - Lecture\"},
+     \"url\": \"https://usosweb.polsl.pl/x\",
+     \"course_name\": {\"pl\": \"Analiza matematyczna\", \"en\": \"Calculus\"},
+     \"classtype_name\": {\"pl\": \"Wykład\", \"en\": \"Lecture\"},
+     \"lecturer_ids\": [101, 102], \"group_number\": 1,
+     \"classgroup_profile_url\": \"https://usosweb.polsl.pl/group\",
+     \"building_name\": {\"pl\": \"Wydział AEiI\", \"en\": \"Faculty AEiI\"},
+     \"room_number\": \"301\", \"room_id\": 5, \"frequency\": \"every_fortnight_odd\"},
+    {\"type\": \"exam\",
+     \"start_time\": \"2026-10-10 12:00:00\", \"end_time\": \"2026-10-10 14:00:00\",
+     \"name\": {\"pl\": \"Egzamin z fizyki\", \"en\": \"Physics exam\"},
+     \"url\": null, \"building_name\": {}, \"room_number\": \"\"}]"
+  "USOS services/tt/user response fixture following the API reference.")
+
+(defun plan-polsl-usos-test--activities ()
+  "Return the parsed activity fixture."
+  (plan-polsl-usos--parse-response 200 plan-polsl-usos-test--activities-json))
+
+(ert-deftest plan-polsl-usos-test-activity-to-entry ()
+  (let* ((plan-polsl-usos-language "pl")
+         (names (make-hash-table :test #'equal))
+         (_ (puthash "101" "dr Jan Kowalski" names))
+         (entry (plan-polsl-usos--activity-to-entry
+                 (car (plan-polsl-usos-test--activities)) names)))
+    (should (= (plist-get entry :day-index) 1))
+    (should (equal (plist-get entry :day-name) "Poniedziałek"))
+    (should (equal (plist-get entry :date) "2026-10-05"))
+    (should (equal (plist-get entry :start-time) "08:30"))
+    (should (equal (plist-get entry :end-time) "10:00"))
+    (should (equal (plist-get entry :title) "Analiza matematyczna"))
+    (should (equal (plist-get entry :type) "Wykład"))
+    (should (eq (plist-get entry :cycle) 'odd))
+    (should (plist-get entry :biweekly))
+    (should (equal (plist-get entry :dates) '("05.10")))
+    (should (equal (plist-get entry :groups) '("gr. 1")))
+    (should (equal (plist-get entry :teachers) '("dr Jan Kowalski" "102")))
+    (should (equal (plist-get entry :rooms) '("301")))
+    (should (equal (plist-get entry :building) "Wydział AEiI"))
+    (should (equal (plist-get entry :url) "https://usosweb.polsl.pl/group"))))
+
+(ert-deftest plan-polsl-usos-test-exam-to-entry ()
+  (let* ((plan-polsl-usos-language "pl")
+         (entry (plan-polsl-usos--activity-to-entry
+                 (cadr (plan-polsl-usos-test--activities)))))
+    (should (= (plist-get entry :day-index) 6))
+    (should (equal (plist-get entry :title) "Egzamin z fizyki"))
+    (should (equal (plist-get entry :type) "Egzamin"))
+    (should-not (plist-get entry :rooms))
+    (should-not (plist-get entry :building))
+    (should-not (plist-get entry :teachers))
+    (should-not (plist-get entry :biweekly))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

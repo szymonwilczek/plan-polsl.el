@@ -373,5 +373,48 @@ about the weekly rhythm."
          (dow (nth 6 (decode-time (encode-time 0 0 12 (nth 2 parts) (nth 1 parts) (nth 0 parts))))))
     (if (= dow 0) 7 dow)))
 
+(defun plan-polsl-usos--activity-to-entry (activity &optional names)
+  "Convert USOS ACTIVITY alist into a timetable entry plist.
+The plist uses the keys produced by `plan-polsl-parser-parse-entries',
+plus :date, :building and :url. NAMES maps lecturer ids (strings) to
+display names; unknown lecturers are shown by id."
+  (let* ((start (plan-polsl-usos--split-datetime (alist-get 'start_time activity)))
+         (end (plan-polsl-usos--split-datetime (alist-get 'end_time activity)))
+         (date (car start))
+         (day (plan-polsl-usos--iso-day date))
+         (kind (alist-get 'type activity))
+         (course (plan-polsl-usos--lang (alist-get 'course_name activity)))
+         (title (or course
+                    (plan-polsl-usos--lang (alist-get 'name activity))
+                    "Zajęcia"))
+         (type (or (plan-polsl-usos--lang (alist-get 'classtype_name activity))
+                   (if (equal kind "exam") "Egzamin" "Zajęcia")))
+         (frequency (alist-get 'frequency activity))
+         (group (alist-get 'group_number activity))
+         (room (alist-get 'room_number activity))
+         (teachers (mapcar (lambda (id)
+                             (let ((key (format "%s" id)))
+                               (or (and names (gethash key names)) key)))
+                           (alist-get 'lecturer_ids activity))))
+    (list :day-index day
+          :day-name (aref plan-polsl-usos--day-names (1- day))
+          :date date
+          :start-time (cdr start)
+          :end-time (cdr end)
+          :title title
+          :full-title title
+          :type type
+          :sections nil
+          :biweekly (plan-polsl-usos--biweekly-p frequency)
+          :cycle (plan-polsl-usos--frequency-cycle frequency)
+          :dates (list (format-time-string "%d.%m" (date-to-time (concat date " 12:00"))))
+          :groups (when group (list (format "gr. %s" group)))
+          :teachers teachers
+          :rooms (when (and (stringp room) (not (string-empty-p room)))
+                   (list room))
+          :building (plan-polsl-usos--lang (alist-get 'building_name activity))
+          :url (or (alist-get 'classgroup_profile_url activity)
+                   (alist-get 'url activity)))))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
