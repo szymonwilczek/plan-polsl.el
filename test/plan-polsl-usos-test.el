@@ -184,5 +184,16 @@
   (should-not (plan-polsl-usos--biweekly-p "every_week"))
   (should-not (plan-polsl-usos--biweekly-p nil)))
 
+(ert-deftest plan-polsl-usos-test-split-datetime ()
+  (should (equal (plan-polsl-usos--split-datetime "2026-10-05 08:30:00")
+                 '("2026-10-05" . "08:30")))
+  (should-error (plan-polsl-usos--split-datetime nil) :type 'plan-polsl-usos-error)
+  (should-error (plan-polsl-usos--split-datetime "05.10.2026") :type 'plan-polsl-usos-error))
+
+(ert-deftest plan-polsl-usos-test-iso-day ()
+  (should (= (plan-polsl-usos--iso-day "2026-10-05") 1))
+  (should (= (plan-polsl-usos--iso-day "2026-10-09") 5))
+  (should (= (plan-polsl-usos--iso-day "2026-10-11") 7)))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

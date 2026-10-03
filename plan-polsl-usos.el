@@ -355,5 +355,23 @@ about the weekly rhythm."
   (and (stringp frequency)
        (string-prefix-p "every_fortnight" frequency)))
 
+(defconst plan-polsl-usos--day-names
+  ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek" "Sobota" "Niedziela"]
+  "Day names indexed by ISO day of week minus one.")
+
+(defun plan-polsl-usos--split-datetime (datetime)
+  "Split USOS DATETIME \"YYYY-MM-DD hh:mm:ss\" into (DATE . \"hh:mm\")."
+  (if (and (stringp datetime)
+           (string-match "\\`\\([0-9-]\\{10\\}\\) \\([0-9]\\{2\\}:[0-9]\\{2\\}\\)" datetime))
+      (cons (match-string 1 datetime) (match-string 2 datetime))
+    (signal 'plan-polsl-usos-error
+            (list (format "Nieprawidłowa data w odpowiedzi USOS: %S" datetime)))))
+
+(defun plan-polsl-usos--iso-day (date)
+  "Return ISO day of week (1=Monday .. 7=Sunday) of DATE \"YYYY-MM-DD\"."
+  (let* ((parts (mapcar #'string-to-number (split-string date "-")))
+         (dow (nth 6 (decode-time (encode-time 0 0 12 (nth 2 parts) (nth 1 parts) (nth 0 parts))))))
+    (if (= dow 0) 7 dow)))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
