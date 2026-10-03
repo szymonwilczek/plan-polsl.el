@@ -250,5 +250,21 @@
     (should-not (plist-get entry :teachers))
     (should-not (plist-get entry :biweekly))))
 
+(ert-deftest plan-polsl-usos-test-lecturer-names ()
+  (let ((plan-polsl-usos--names (make-hash-table :test #'equal)))
+    (puthash "102" "known" plan-polsl-usos--names)
+    (should (equal (plan-polsl-usos--missing-lecturers (plan-polsl-usos-test--activities))
+                   '("101")))
+    (should (equal (plan-polsl-usos--users-params '("101" "103"))
+                   '(("user_ids" . "101|103") ("fields" . "id|first_name|last_name|titles"))))
+    (plan-polsl-usos--store-users
+     (plan-polsl-usos--parse-response
+      200 "{\"101\": {\"id\": \"101\", \"first_name\": \"Jan\", \"last_name\": \"Kowalski\",
+                     \"titles\": {\"before\": \"dr inż.\", \"after\": null}},
+           \"103\": null}"))
+    (should (equal (gethash "101" plan-polsl-usos--names) "dr inż. Jan Kowalski"))
+    (should-not (gethash "103" plan-polsl-usos--names))
+    (should-not (plan-polsl-usos--missing-lecturers (plan-polsl-usos-test--activities)))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

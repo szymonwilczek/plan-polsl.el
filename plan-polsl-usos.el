@@ -76,6 +76,9 @@ The file is created with permissions 0600. Use a name ending in
 `studies' grants access to the personal timetable, `offline_access'
 makes the access token long-lived instead of expiring within hours.")
 
+(defvar plan-polsl-usos--names (make-hash-table :test #'equal)
+  "Cache mapping USOS user ids (strings) to lecturer display names.")
+
 (defvar plan-polsl-usos--token 'unloaded
   "Cached access token plist, or the symbol `unloaded' before first read.")
 
@@ -415,6 +418,38 @@ display names; unknown lecturers are shown by id."
           :building (plan-polsl-usos--lang (alist-get 'building_name activity))
           :url (or (alist-get 'classgroup_profile_url activity)
                    (alist-get 'url activity)))))
+
+(defun plan-polsl-usos--format-user (user)
+  "Return display name of USOS USER alist, with academic titles."
+  (let ((titles (alist-get 'titles user)))
+    (string-join (delq nil (list (alist-get 'before titles)
+                                 (alist-get 'first_name user)
+                                 (alist-get 'last_name user)
+                                 (alist-get 'after titles)))
+                 " ")))
+
+(defun plan-polsl-usos--missing-lecturers (activities)
+  "Return lecturer ids in ACTIVITIES absent from `plan-polsl-usos--names'."
+  (let (ids)
+    (dolist (act activities)
+      (dolist (id (alist-get 'lecturer_ids act))
+        (let ((key (format "%s" id)))
+          (unless (or (gethash key plan-polsl-usos--names) (member key ids))
+            (push key ids)))))
+    (nreverse ids)))
+
+(defun plan-polsl-usos--users-params (ids)
+  "Return services/users/users parameters for lecturer IDS."
+  `(("user_ids" . ,(string-join ids "|"))
+    ("fields" . "id|first_name|last_name|titles")))
+
+(defun plan-polsl-usos--store-users (response)
+  "Cache names from services/users/users RESPONSE (id -> user or null)."
+  (dolist (pair response)
+    (when (cdr pair)
+      (puthash (symbol-name (car pair))
+               (plan-polsl-usos--format-user (cdr pair))
+               plan-polsl-usos--names))))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here
