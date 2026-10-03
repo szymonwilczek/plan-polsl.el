@@ -54,5 +54,11 @@
     (should (string-match-p ":URL: https://usosweb.polsl.pl/g\n   :END:" text))
     (should-not (string-match-p "BUDYNEK\\|URL" plain))))
 
+(ert-deftest plan-polsl-org-test-type-to-tag ()
+  (should (equal (plan-polsl-org--type-to-tag "Wykład") "wyklad"))
+  (should (equal (plan-polsl-org--type-to-tag "Laboratorium") "lab"))
+  (should (equal (plan-polsl-org--type-to-tag "Egzamin") "egzamin"))
+  (should (equal (plan-polsl-org--type-to-tag nil) "zajecia")))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

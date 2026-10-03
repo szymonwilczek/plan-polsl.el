@@ -82,6 +82,7 @@ START-TIME and END-TIME are \"hh:mm\" strings."
      ((string-match-p "sem" ltype) "seminarium")
      ((string-match-p "ćw" ltype) "cwiczenia")
      ((string-match-p "proj" ltype) "projekt")
+     ((string-match-p "egz" ltype) "egzamin")
      (t "zajecia"))))
 
 (defun plan-polsl-org-format-entry (entry)
