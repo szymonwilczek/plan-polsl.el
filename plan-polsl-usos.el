@@ -183,31 +183,19 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
 
 (defun plan-polsl-usos--save-token (token)
   "Persist access TOKEN plist to `plan-polsl-usos-token-file' (mode 0600)."
-  (let ((file plan-polsl-usos-token-file))
-    (make-directory (file-name-directory (expand-file-name file)) t)
-    (with-file-modes #o600
-      (with-temp-file file
-        (insert ";; plan-polsl USOS access token, do not share\n")
-        (let ((print-length nil)
-              (print-level nil))
-          (prin1 token (current-buffer)))
-        (insert "\n")))
-    (setq plan-polsl-usos--token token)))
+  (plan-polsl-usos--write-private plan-polsl-usos-token-file
+                                  "plan-polsl USOS access token, do not share"
+                                  token)
+  (setq plan-polsl-usos--token token))
 
 (defun plan-polsl-usos--load-token ()
   "Return the stored access token plist, or nil when not logged in."
   (when (eq plan-polsl-usos--token 'unloaded)
     (setq plan-polsl-usos--token
-          (let ((file plan-polsl-usos-token-file))
-            (when (file-readable-p file)
-              (condition-case nil
-                  (with-temp-buffer
-                    (insert-file-contents file)
-                    (let ((token (read (current-buffer))))
-                      (and (plist-get token :token)
-                           (plist-get token :secret)
-                           token)))
-                (error nil))))))
+          (let ((token (plan-polsl-usos--read-private plan-polsl-usos-token-file)))
+            (and (plist-get token :token)
+                 (plist-get token :secret)
+                 token))))
   plan-polsl-usos--token)
 
 (defun plan-polsl-usos--delete-token ()
