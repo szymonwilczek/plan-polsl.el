@@ -68,5 +68,35 @@ request and oauth_* parameters (RFC 5849 section 3.4.1)."
           "&" (plan-polsl-oauth-encode url)
           "&" (plan-polsl-oauth-encode (plan-polsl-oauth-normalize-params params))))
 
+(defun plan-polsl-oauth--nonce ()
+  "Return a fresh random nonce string."
+  (substring (secure-hash 'sha1 (format "%s%s%s%s"
+                                        (random) (float-time)
+                                        (emacs-pid) (system-name)))
+             0 32))
+
+(defun plan-polsl-oauth-sign (method url params consumer-key consumer-secret
+                                     &optional token token-secret nonce timestamp)
+  "Return PARAMS extended with signed OAuth 1.0a protocol parameters.
+METHOD and URL describe the request; URL must not contain a query string.
+CONSUMER-KEY and CONSUMER-SECRET identify the application. TOKEN and
+TOKEN-SECRET identify the request or access token, when there is one.
+NONCE and TIMESTAMP default to fresh values and exist for testing."
+  (let* ((oauth `(("oauth_consumer_key" . ,consumer-key)
+                  ("oauth_nonce" . ,(or nonce (plan-polsl-oauth--nonce)))
+                  ("oauth_signature_method" . "HMAC-SHA1")
+                  ("oauth_timestamp" . ,(format "%s" (or timestamp
+                                                         (truncate (float-time)))))
+                  ("oauth_version" . "1.0")
+                  ,@(when token `(("oauth_token" . ,token)))))
+         (all (append params oauth))
+         (key (concat (plan-polsl-oauth-encode consumer-secret)
+                      "&" (plan-polsl-oauth-encode (or token-secret ""))))
+         (signature (base64-encode-string
+                     (plan-polsl-oauth-hmac-sha1
+                      key (plan-polsl-oauth-base-string method url all))
+                     t)))
+    (append all `(("oauth_signature" . ,signature)))))
+
 (provide 'plan-polsl-oauth)
 ;;; plan-polsl-oauth.el ends here

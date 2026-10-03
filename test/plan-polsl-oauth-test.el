@@ -56,5 +56,24 @@
                          "%26oauth_token%3Dnnch734d00sl2jdk"
                          "%26oauth_version%3D1.0%26size%3Doriginal"))))
 
+(ert-deftest plan-polsl-oauth-test-sign ()
+  ;; RFC 5849 section 1.2 example signature
+  (let ((signed (plan-polsl-oauth-sign
+                 "GET" "http://photos.example.net/photos"
+                 '(("file" . "vacation.jpg") ("size" . "original"))
+                 "dpf43f3p2l4k3l03" "kd94hf93k423kf44"
+                 "nnch734d00sl2jdk" "pfkkdhi9sl3r4s00"
+                 "kllo9940pd9333jh" 1191242096)))
+    (should (equal (cdr (assoc "oauth_signature" signed))
+                   "tR3+Ty81lMeYAr/Fid0kMTYa/WM="))
+    (should (equal (cdr (assoc "file" signed)) "vacation.jpg"))
+    (should (equal (cdr (assoc "oauth_token" signed)) "nnch734d00sl2jdk"))))
+
+(ert-deftest plan-polsl-oauth-test-sign-without-token ()
+  (let ((signed (plan-polsl-oauth-sign "GET" "https://example.com/x" nil "key" "secret")))
+    (should-not (assoc "oauth_token" signed))
+    (should (= (length (cdr (assoc "oauth_nonce" signed))) 32))
+    (should (assoc "oauth_signature" signed))))
+
 (provide 'plan-polsl-oauth-test)
 ;;; plan-polsl-oauth-test.el ends here
