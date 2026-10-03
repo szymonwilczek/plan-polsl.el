@@ -20,7 +20,7 @@ Emacs package integrating the timetable system of the *Silesian University of Te
 - *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
 - *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
 - *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
-- *USOS Integration* (~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
+- *USOS Integration* (~M-x plan-polsl-usos-setup~, ~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
 
 ** How to Find Your Schedule ID
 
@@ -100,34 +100,29 @@ No keys or secrets ship with this package. USOS API identifies applications by a
 2. Register a new application (any name, e.g. /Emacs plan-polsl/).
 3. Note the *Consumer Key* and *Consumer Secret*. Treat the secret like a password.
 
-*** 2. Store the consumer secret
-Add a line to your encrypted ~~/.authinfo.gpg~ (or any other [[https://www.gnu.org/software/emacs/manual/html_node/auth/][auth-source]] backend):
+*** 2. Enter the key in Emacs
+Run ~M-x plan-polsl-usos-setup~ and paste the Consumer Key and then the Consumer Secret (the secret is not echoed). Running ~M-x plan-polsl-usos-login~ first asks for them as well.
 
-#+begin_example
-machine usosapi.polsl.pl login YOUR_CONSUMER_KEY password YOUR_CONSUMER_SECRET
-#+end_example
+Both are saved to ~plan-polsl-usos-consumer-file~, by default ~~/.local/share/plan-polsl/usos-consumer.eld~ (~$XDG_DATA_HOME/plan-polsl/~), with permissions ~0600~. Nothing has to be added to your Emacs configuration, so a public dotfiles repository stays clean. Files live outside ~user-emacs-directory~ on purpose, because that directory is often the repository itself.
 
-If you do not use auth-source, you can set ~plan-polsl-usos-consumer-secret~ instead, but keep it out of version control.
-
-*** 3. Configure the consumer key
-#+begin_src elisp
-  (use-package plan-polsl
-    :vc (:url "https://github.com/szymonwilczek/plan-polsl.el" :branch "main")
-    :custom
-    (plan-polsl-usos-consumer-key "YOUR_CONSUMER_KEY")             ;; Key from usosapi.polsl.pl/developers
-    (plan-polsl-id "343266256")                                    ;; Optional: plan.polsl.pl fallback
-    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org"))
-#+end_src
-
-*** 4. Log in
+*** 3. Log in
 1. Run ~M-x plan-polsl-usos-login~.
 2. Your browser opens the USOS authorization page (its URL is also copied to the kill ring).
 3. Log in, allow access, and copy the PIN that USOS shows.
 4. Paste the PIN into the minibuffer.
 
-The access token is stored in ~plan-polsl-usos-token-file~ (~~/.emacs.d/plan-polsl-usos-token.eld~ by default) with permissions ~0600~. Name the file with a ~.gpg~ suffix to have it encrypted by EasyPG. The package requests the ~studies~ permission (to read your timetable) and ~offline_access~ (so that you do not have to log in again every few hours).
+The access token is stored next to the key in ~plan-polsl-usos-token-file~ (~~/.local/share/plan-polsl/usos-token.eld~), also with permissions ~0600~. Give either file a ~.gpg~ suffix to have it encrypted by EasyPG. The package requests the ~studies~ permission (to read your timetable) and ~offline_access~ (so that you do not have to log in again every few hours).
 
-Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
+Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it, or ~C-u M-x plan-polsl-usos-logout~ to also delete the stored key and secret.
+
+*** Alternative: key in configuration and auth-source
+If you prefer managing credentials yourself, skip ~plan-polsl-usos-setup~, set ~plan-polsl-usos-consumer-key~ and put the secret in ~~/.authinfo.gpg~ (or set ~plan-polsl-usos-consumer-secret~, keeping it out of version control):
+
+#+begin_example
+machine usosapi.polsl.pl login YOUR_CONSUMER_KEY password YOUR_CONSUMER_SECRET
+#+end_example
+
+A key saved with ~plan-polsl-usos-setup~ takes precedence over this.
 
 *** How it behaves
 - *Default timetable:* while logged in, ~M-x plan-polsl~ opens your USOS timetable in the ~*Plan PolSL: USOS*~ buffer. ~C-u M-x plan-polsl~ opens the plan.polsl.pl timetable of ~plan-polsl-id~ instead.
@@ -139,16 +134,17 @@ Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 
 *** USOS options
 
-| Variable                        | Default                              | Description                                                  |
-|---------------------------------+--------------------------------------+--------------------------------------------------------------|
-| ~plan-polsl-usos-consumer-key~    | ~nil~                                  | Your consumer key from usosapi.polsl.pl/developers.          |
-| ~plan-polsl-usos-consumer-secret~ | ~nil~                                  | Fallback when auth-source has no entry (not recommended).    |
-| ~plan-polsl-usos-token-file~      | ~~/.emacs.d/plan-polsl-usos-token.eld~ | Where the access token is stored (use ~.gpg~ to encrypt).      |
-| ~plan-polsl-usos-default~         | ~t~                                    | Prefer the USOS timetable in ~plan-polsl~ and ~plan-polsl-sync~. |
-| ~plan-polsl-usos-sync-weeks~      | ~16~                                   | Weeks exported to Org by ~plan-polsl-sync~.                    |
-| ~plan-polsl-usos-language~        | ~"pl"~                                 | Language of course names (~"pl"~ or ~"en"~).                     |
-| ~plan-polsl-usos-timeout~         | ~15~                                   | Seconds before a USOS request times out.                     |
-| ~plan-polsl-usos-base-url~        | ~"https://usosapi.polsl.pl/"~          | USOS API installation.                                       |
+| Variable                        | Default                                     | Description                                                  |
+|---------------------------------+---------------------------------------------+--------------------------------------------------------------|
+| ~plan-polsl-usos-consumer-file~   | ~~/.local/share/plan-polsl/usos-consumer.eld~ | Where ~plan-polsl-usos-setup~ stores the key and secret.       |
+| ~plan-polsl-usos-token-file~      | ~~/.local/share/plan-polsl/usos-token.eld~    | Where the access token is stored (use ~.gpg~ to encrypt).      |
+| ~plan-polsl-usos-consumer-key~    | ~nil~                                         | Alternative: consumer key set in the configuration.          |
+| ~plan-polsl-usos-consumer-secret~ | ~nil~                                         | Alternative: secret when auth-source has no entry.           |
+| ~plan-polsl-usos-default~         | ~t~                                           | Prefer the USOS timetable in ~plan-polsl~ and ~plan-polsl-sync~. |
+| ~plan-polsl-usos-sync-weeks~      | ~16~                                          | Weeks exported to Org by ~plan-polsl-sync~.                    |
+| ~plan-polsl-usos-language~        | ~"pl"~                                        | Language of course names (~"pl"~ or ~"en"~).                     |
+| ~plan-polsl-usos-timeout~         | ~15~                                          | Seconds before a USOS request times out.                     |
+| ~plan-polsl-usos-base-url~        | ~"https://usosapi.polsl.pl/"~                 | USOS API installation.                                       |
 
 ** Interactive Commands
 
@@ -160,8 +156,9 @@ Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 | ~M-x plan-polsl-refresh-teachers~ | Force update the local cache of academic teachers from plan.polsl.pl.   |
 | ~M-x plan-polsl-sync~             | Download and update your schedule in the Org-mode file for Org-Agenda.  |
 | ~M-x plan-polsl-open-plan~        | Open the generated ~plan-polsl.org~ file.                                 |
+| ~M-x plan-polsl-usos-setup~       | Enter and privately store your USOS API Consumer Key and Secret.        |
 | ~M-x plan-polsl-usos-login~       | Log in to USOS (opens the browser, asks for the PIN).                   |
-| ~M-x plan-polsl-usos-logout~      | Revoke and delete the stored USOS token.                                |
+| ~M-x plan-polsl-usos-logout~      | Revoke and delete the stored USOS token (~C-u~: also forget the key).     |
 | ~M-x plan-polsl-usos~             | Open the personal USOS timetable regardless of ~plan-polsl-usos-default~. |
 | ~M-x plan-polsl-usos-sync~        | Export the USOS timetable to Org regardless of ~plan-polsl-usos-default~. |
 
@@ -169,3 +166,4 @@ Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
 
 - *Author:* [[https://github.com/szymonwilczek][Szymon Wilczek]]
 - *License:* [[file:LICENSE][GNU General Public License v3.0 (GPLv3)]]
+  
