@@ -58,13 +58,6 @@
   :type 'file
   :group 'plan-polsl)
 
-(defcustom plan-polsl-semester-start nil
-  "Start date of the academic semester in \"YYYY-MM-DD\" format.
-When nil, automatically computes the appropriate semester start date."
-  :type '(choice (const :tag "Auto (October / March)" nil)
-                 (string :tag "Custom Date (YYYY-MM-DD)"))
-  :group 'plan-polsl)
-
 (defcustom plan-polsl-auto-add-to-agenda t
   "Whether to automatically add `plan-polsl-target-file' to `org-agenda-files'."
   :type 'boolean
@@ -81,6 +74,7 @@ When nil, automatically computes the appropriate semester start date."
   :group 'plan-polsl)
 
 (require 'plan-polsl-http)
+(require 'plan-polsl-semester)
 (require 'plan-polsl-parser)
 (require 'plan-polsl-usos)
 (require 'plan-polsl-view)
