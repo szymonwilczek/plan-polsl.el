@@ -86,6 +86,49 @@ Configure the package parameters directly in your Emacs configuration:
     (plan-polsl-auto-add-to-agenda t))
 #+end_src
 
+** USOS Integration
+:PROPERTIES:
+:CUSTOM_ID: usos-integration
+:END:
+
+Instead of a group timetable from plan.polsl.pl you can use your *personal* timetable from USOS. Once you are logged in, ~M-x plan-polsl~ and ~M-x plan-polsl-sync~ use USOS by default.
+
+No keys or secrets ship with this package. USOS API identifies applications by a /consumer key/, which you register yourself for free, and you log in with your own USOS account.
+
+*** 1. Register a USOS API consumer key
+1. Open [[https://usosapi.polsl.pl/developers/][usosapi.polsl.pl/developers]] and log in with your USOS account.
+2. Register a new application (any name, e.g. /Emacs plan-polsl/).
+3. Note the *Consumer Key* and *Consumer Secret*. Treat the secret like a password.
+
+*** 2. Store the consumer secret
+Add a line to your encrypted ~~/.authinfo.gpg~ (or any other [[https://www.gnu.org/software/emacs/manual/html_node/auth/][auth-source]] backend):
+
+#+begin_example
+machine usosapi.polsl.pl login YOUR_CONSUMER_KEY password YOUR_CONSUMER_SECRET
+#+end_example
+
+If you do not use auth-source, you can set ~plan-polsl-usos-consumer-secret~ instead, but keep it out of version control.
+
+*** 3. Configure the consumer key
+#+begin_src elisp
+  (use-package plan-polsl
+    :vc (:url "https://github.com/szymonwilczek/plan-polsl.el" :branch "main")
+    :custom
+    (plan-polsl-usos-consumer-key "YOUR_CONSUMER_KEY")             ;; Key from usosapi.polsl.pl/developers
+    (plan-polsl-id "343266256")                                    ;; Optional: plan.polsl.pl fallback
+    (plan-polsl-target-file "~/Dokumenty/writings/plan-polsl.org"))
+#+end_src
+
+*** 4. Log in
+1. Run ~M-x plan-polsl-usos-login~.
+2. Your browser opens the USOS authorization page (its URL is also copied to the kill ring).
+3. Log in, allow access, and copy the PIN that USOS shows.
+4. Paste the PIN into the minibuffer.
+
+The access token is stored in ~plan-polsl-usos-token-file~ (~~/.emacs.d/plan-polsl-usos-token.eld~ by default) with permissions ~0600~. Name the file with a ~.gpg~ suffix to have it encrypted by EasyPG. The package requests the ~studies~ permission (to read your timetable) and ~offline_access~ (so that you do not have to log in again every few hours).
+
+Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it.
+
 ** Interactive Commands
 
 | Command                         | Description                                                            |
