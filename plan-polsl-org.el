@@ -19,19 +19,22 @@
   ["pon" "wto" "śro" "czw" "pią" "sob" "nie"]
   "Short day of week names used in Org active timestamps.")
 
-(defun plan-polsl-org--format-timestamp (day-index start-time end-time &optional biweekly)
-  "Format an active recurring Org timestamp for DAY-INDEX, START-TIME, END-TIME."
-  (let* ((day-offset (1- day-index))
+(defun plan-polsl-org--format-timestamp (day-index start-time end-time &optional biweekly cycle)
+  "Format an active recurring Org timestamp for DAY-INDEX, START-TIME, END-TIME.
+BIWEEKLY classes repeat every two weeks; CYCLE `even' makes them start
+in week 2. The first occurrence never falls before the semester start."
+  (let* ((start (format-time-string "%F" (plan-polsl-semester-start)))
          (target-time (time-add (plan-polsl-semester-first-monday)
-                                (days-to-time day-offset)))
-         (dec (decode-time target-time))
-         (year (nth 5 dec))
-         (month (nth 4 dec))
-         (day (nth 3 dec))
-         (day-abbrev (aref plan-polsl-org-day-abbrevs (1- day-index)))
-         (repeat (if biweekly "+2w" "+1w")))
-    (format "<%04d-%02d-%02d %s %s-%s %s>"
-            year month day day-abbrev start-time end-time repeat)))
+                                (days-to-time (+ (1- day-index)
+                                                 (if (eq cycle 'even) 7 0)))))
+         (step (if biweekly 14 7)))
+    (while (string< (format-time-string "%F" target-time) start)
+      (setq target-time (time-add target-time (days-to-time step))))
+    (let* ((dec (decode-time target-time))
+           (day-abbrev (aref plan-polsl-org-day-abbrevs (1- day-index))))
+      (format "<%04d-%02d-%02d %s %s-%s %s>"
+              (nth 5 dec) (nth 4 dec) (nth 3 dec) day-abbrev start-time end-time
+              (if biweekly "+2w" "+1w")))))
 
 (defun plan-polsl-org--format-date-timestamp (date day-index start-time end-time)
   "Format a non-repeating active Org timestamp.
@@ -67,7 +70,8 @@ START-TIME and END-TIME are \"hh:mm\" strings."
          (date (plist-get entry :date))
          (timestamp (if date
                         (plan-polsl-org--format-date-timestamp date day-idx start-time end-time)
-                      (plan-polsl-org--format-timestamp day-idx start-time end-time biweekly)))
+                      (plan-polsl-org--format-timestamp day-idx start-time end-time biweekly
+                                                        (plist-get entry :cycle))))
          (sec-str (if sections (concat " (sek. " (mapconcat #'identity sections ", ") ")") ""))
          (teachers-str (if teachers (mapconcat #'identity teachers ", ") "Brak danych"))
          (rooms-str (if rooms (mapconcat #'identity rooms ", ") "Brak danych")))

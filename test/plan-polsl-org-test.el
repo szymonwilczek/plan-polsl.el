@@ -28,6 +28,25 @@
                              (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00" t)
                                             "<2026-10-05 pon 08:30-10:00 +2w>")))))
 
+(ert-deftest plan-polsl-org-test-cycle-and-start-day ()
+  ;; October 1st 2026 is a Thursday: week 1 runs from Monday 28.09
+  (plan-polsl-org-test--on 2026 10 3
+                           (let ((plan-polsl-semester-start "2026-10-01"))
+                             ;; Thursday of week 1 is the start day itself
+                             (should (equal (plan-polsl-org--format-timestamp 4 "08:30" "10:00")
+                                            "<2026-10-01 czw 08:30-10:00 +1w>"))
+                             ;; Monday of week 1 is before the start, first class a week later
+                             (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00")
+                                            "<2026-10-05 pon 08:30-10:00 +1w>"))
+                             (should (equal (plan-polsl-org--format-timestamp 3 "08:30" "10:00")
+                                            "<2026-10-07 śro 08:30-10:00 +1w>"))
+                             ;; odd biweekly Monday skips to week 3 to keep its parity
+                             (should (equal (plan-polsl-org--format-timestamp 1 "08:30" "10:00" t 'odd)
+                                            "<2026-10-12 pon 08:30-10:00 +2w>"))
+                             ;; even biweekly classes start in week 2
+                             (should (equal (plan-polsl-org--format-timestamp 5 "08:30" "10:00" t 'even)
+                                            "<2026-10-09 pią 08:30-10:00 +2w>")))))
+
 (ert-deftest plan-polsl-org-test-base-monday-in-summer ()
   ;; the summer semester no longer falls back to October
   (plan-polsl-org-test--on 2027 4 15
