@@ -12,6 +12,7 @@
 (require 'time-date)
 (require 'plan-polsl-http)
 (require 'plan-polsl-parser)
+(require 'plan-polsl-semester)
 (require 'plan-polsl-usos)
 
 ;; external references for clean byte-compilation
@@ -174,24 +175,9 @@
          (days-since-monday (if (= dow 0) 6 (1- dow))))
     (time-subtract time-val (days-to-time days-since-monday))))
 
-(defun plan-polsl-view--determine-semester-start (target-time)
-  "Determine the semester start date for TARGET-TIME.
-The winter semester starts on October 1st, so week 1 is the week
-containing that day, whatever weekday it falls on. The semester is
-picked by the end of TARGET-TIME's week, so the last days of
-September already belong to the winter semester's first week."
-  (let* ((decoded (decode-time (time-add (plan-polsl-view--get-monday target-time)
-                                         (days-to-time 6))))
-         (year (nth 5 decoded))
-         (month (nth 4 decoded)))
-    (if (or (>= month 10) (<= month 2))
-        (encode-time 0 0 0 1 10 (if (<= month 2) (1- year) year))
-      (encode-time 0 0 0 2 3 year))))
-
 (defun plan-polsl-view--week-info (monday-time)
   "Return plist (:week-num N :cycle `odd|`even :label STR) for MONDAY-TIME."
-  (let* ((sem-start (plan-polsl-view--determine-semester-start monday-time))
-         (sem-start-mon (plan-polsl-view--get-monday sem-start))
+  (let* ((sem-start-mon (plan-polsl-semester-first-monday monday-time))
          (diff-sec (float-time (time-subtract monday-time sem-start-mon)))
          (week-num (1+ (floor (/ diff-sec (* 7 86400)))))
          (cycle (if (cl-oddp week-num) 'odd 'even))
@@ -765,8 +751,7 @@ to show (defaults to the current week)."
   (plan-polsl-view--require-plan)
   (when (or (< week-num 1) (> week-num 30))
     (user-error "Numer tygodnia musi być z zakresu 1-30"))
-  (let* ((sem-start (plan-polsl-view--determine-semester-start (current-time)))
-         (sem-start-mon (plan-polsl-view--get-monday sem-start))
+  (let* ((sem-start-mon (plan-polsl-semester-first-monday))
          (target-mon (time-add sem-start-mon (days-to-time (* (1- week-num) 7)))))
     (plan-polsl-view--show-week target-mon)
     (message "Przejście do tygodnia %d (%s)"

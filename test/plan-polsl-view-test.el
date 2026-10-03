@@ -5,8 +5,13 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'plan-polsl)
+
+;; never read the semester start saved by the developer running the tests
+(setq plan-polsl-semester-file
+      (expand-file-name "plan-polsl-test-none/semester.eld" temporary-file-directory))
 
 (defconst plan-polsl-view-test--entries
   (list (list :day-index 1 :day-name "Poniedziałek"
@@ -190,6 +195,21 @@
     (should (= (plist-get w2 :week-num) 2))
     (should (eq (plist-get w2 :cycle) 'even))
     (should (= (plist-get jan :week-num) 16))))
+
+(ert-deftest plan-polsl-view-test-saved-semester-start ()
+  ;; a later start announced by the dean moves week 1 and the parity
+  (let* ((dir (make-temp-file "plan-polsl-view" t))
+         (plan-polsl-semester-file (expand-file-name "semester.eld" dir)))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'message) #'ignore))
+            (plan-polsl-set-semester-start "2026-10-05"))
+          (let ((before (plan-polsl-view--week-info (encode-time 0 0 0 28 9 2026)))
+                (w1 (plan-polsl-view--week-info (encode-time 0 0 0 5 10 2026))))
+            (should (string-match-p "Poza semestrem" (plist-get before :label)))
+            (should (= (plist-get w1 :week-num) 1))
+            (should (eq (plist-get w1 :cycle) 'odd))))
+      (delete-directory dir t))))
 
 (ert-deftest plan-polsl-view-test-require-plan ()
   (with-temp-buffer
