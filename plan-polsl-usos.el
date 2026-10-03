@@ -451,5 +451,71 @@ display names; unknown lecturers are shown by id."
                (plan-polsl-usos--format-user (cdr pair))
                plan-polsl-usos--names))))
 
+(defconst plan-polsl-usos--activity-fields
+  (concat "type|start_time|end_time|name|url|course_name|classtype_name"
+          "|lecturer_ids|group_number|classgroup_profile_url|building_name"
+          "|room_number|frequency")
+  "Activity fields requested from services/tt/user.")
+
+(defun plan-polsl-usos--tt-params (monday)
+  "Return services/tt/user parameters for the week starting at MONDAY.
+MONDAY is a Lisp time value; USOS allows at most 7 days per request."
+  `(("start" . ,(format-time-string "%Y-%m-%d" monday))
+    ("days" . "7")
+    ("fields" . ,plan-polsl-usos--activity-fields)))
+
+(defun plan-polsl-usos--activities-to-entries (activities)
+  "Convert ACTIVITIES into entries sorted by date and start time."
+  (sort (mapcar (lambda (act)
+                  (plan-polsl-usos--activity-to-entry act plan-polsl-usos--names))
+                activities)
+        (lambda (a b)
+          (string< (concat (plist-get a :date) (plist-get a :start-time))
+                   (concat (plist-get b :date) (plist-get b :start-time))))))
+
+(defun plan-polsl-usos--require-token ()
+  "Return the stored access token or signal `user-error'."
+  (or (plan-polsl-usos--load-token)
+      (user-error "Nie jesteś zalogowany do USOS (M-x plan-polsl-usos-login)")))
+
+(defun plan-polsl-usos-fetch-week (monday)
+  "Fetch personal USOS timetable entries for the week starting at MONDAY.
+Blocks until done; see `plan-polsl-usos-fetch-week-async'."
+  (let* ((token (plan-polsl-usos--require-token))
+         (activities (plan-polsl-usos--call "services/tt/user"
+                                            (plan-polsl-usos--tt-params monday)
+                                            token))
+         (missing (plan-polsl-usos--missing-lecturers activities)))
+    (when missing
+      (condition-case nil
+          (plan-polsl-usos--store-users
+           (plan-polsl-usos--call "services/users/users"
+                                  (plan-polsl-usos--users-params missing)
+                                  token))
+        (plan-polsl-usos-error nil)))
+    (plan-polsl-usos--activities-to-entries activities)))
+
+(defun plan-polsl-usos-fetch-week-async (monday callback errback)
+  "Fetch USOS timetable entries for the week at MONDAY asynchronously.
+CALLBACK receives the entry list, ERRBACK the error condition. A failed
+lecturer name lookup is not an error; ids are shown instead."
+  (let ((token (plan-polsl-usos--require-token)))
+    (plan-polsl-usos--call-async
+     "services/tt/user" (plan-polsl-usos--tt-params monday) token
+     (lambda (activities)
+       (let ((missing (plan-polsl-usos--missing-lecturers activities))
+             (finish (lambda (&rest _)
+                       (funcall callback
+                                (plan-polsl-usos--activities-to-entries activities)))))
+         (if (null missing)
+             (funcall finish)
+           (plan-polsl-usos--call-async
+            "services/users/users" (plan-polsl-usos--users-params missing) token
+            (lambda (users)
+              (plan-polsl-usos--store-users users)
+              (funcall finish))
+            finish))))
+     errback)))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here

@@ -266,5 +266,53 @@
     (should-not (gethash "103" plan-polsl-usos--names))
     (should-not (plan-polsl-usos--missing-lecturers (plan-polsl-usos-test--activities)))))
 
+(ert-deftest plan-polsl-usos-test-tt-params ()
+  (should (equal (butlast (plan-polsl-usos--tt-params (encode-time 0 0 0 5 10 2026)))
+                 '(("start" . "2026-10-05") ("days" . "7")))))
+
+(ert-deftest plan-polsl-usos-test-fetch-week ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-language "pl")
+         (plan-polsl-usos--names (make-hash-table :test #'equal))
+         (calls nil))
+     (plan-polsl-usos--save-token '(:token "at" :secret "as"))
+     (cl-letf (((symbol-function 'plan-polsl-usos--call)
+                (lambda (method params token &rest _)
+                  (push (list method (cdr (assoc "user_ids" params)) token) calls)
+                  (pcase method
+                    ("services/tt/user" (reverse (plan-polsl-usos-test--activities)))
+                    ("services/users/users"
+                     '((\101 (first_name . "Jan") (last_name . "Kowalski"))))))))
+       (let ((entries (plan-polsl-usos-fetch-week (encode-time 0 0 0 5 10 2026))))
+         ;; sorted chronologically although the API order was reversed
+         (should (equal (mapcar (lambda (e) (plist-get e :date)) entries)
+                        '("2026-10-05" "2026-10-10")))
+         (should (equal (plist-get (car entries) :teachers) '("Jan Kowalski" "102")))))
+     (should (equal (nreverse calls)
+                    '(("services/tt/user" nil (:token "at" :secret "as"))
+                      ("services/users/users" "101|102" (:token "at" :secret "as"))))))))
+
+(ert-deftest plan-polsl-usos-test-fetch-week-async-survives-name-failure ()
+  (plan-polsl-usos-test--with-token-file
+   (let ((plan-polsl-usos-language "pl")
+         (plan-polsl-usos--names (make-hash-table :test #'equal))
+         (result nil))
+     (plan-polsl-usos--save-token '(:token "at" :secret "as"))
+     (cl-letf (((symbol-function 'plan-polsl-usos--call-async)
+                (lambda (method _params _token callback errback)
+                  (pcase method
+                    ("services/tt/user" (funcall callback (plan-polsl-usos-test--activities)))
+                    ("services/users/users"
+                     (funcall errback '(plan-polsl-usos-error "HTTP 500: down")))))))
+       (plan-polsl-usos-fetch-week-async (current-time)
+                                         (lambda (entries) (setq result entries))
+                                         (lambda (err) (setq result err))))
+     (should (= (length result) 2))
+     (should (equal (plist-get (car result) :teachers) '("101" "102"))))))
+
+(ert-deftest plan-polsl-usos-test-fetch-week-requires-login ()
+  (plan-polsl-usos-test--with-token-file
+   (should-error (plan-polsl-usos-fetch-week (current-time)) :type 'user-error)))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here
