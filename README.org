@@ -11,7 +11,7 @@
 #+HTML:   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square" alt="License GPLv3"/></a>
 #+HTML: </div>
 
-Emacs package integrating the timetable system of the *Silesian University of Technology* ([[https://plan.polsl.pl/][plan.polsl.pl]]) for student groups, faculty teachers, and rooms with *Org-mode*, *Org-Agenda*, and a dedicated in-memory timetable buffer.
+Emacs package integrating the timetable system of the *Silesian University of Technology* ([[https://plan.polsl.pl/][plan.polsl.pl]]) for student groups, faculty teachers, and rooms with *Org-mode*, *Org-Agenda*, and a dedicated in-memory timetable buffer. Optionally, it shows your personal timetable straight from the university's *USOS* ([[https://usosapi.polsl.pl/][usosapi.polsl.pl]]).
 
 * What's inside:
 
@@ -20,6 +20,7 @@ Emacs package integrating the timetable system of the *Silesian University of Te
 - *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
 - *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
 - *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
+- *USOS Integration* (~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
 
 ** How to Find Your Schedule ID
 
