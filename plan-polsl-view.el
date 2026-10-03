@@ -287,6 +287,7 @@
          (sections (plist-get entry :sections))
          (groups (plist-get entry :groups))
          (teachers-info (plist-get entry :teachers-info))
+         (date (plist-get entry :date))
          (first-target-pos nil))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
@@ -302,12 +303,21 @@
         (insert (format "  %-12s %s\n"
                         (propertize "Typ:" 'face 'font-lock-comment-face)
                         (plan-polsl-view--type-badge type)))
-        (insert (format "  %-12s %s, %s - %s\n"
+        (insert (format "  %-12s %s%s, %s - %s\n"
                         (propertize "Termin:" 'face 'font-lock-comment-face)
-                        day-name start end))
+                        day-name
+                        (if date
+                            (format-time-string " %d.%m.%Y" (date-to-time (concat date " 12:00")))
+                          "")
+                        start end))
         (insert (format "  %-12s %s\n"
                         (propertize "Cykl:" 'face 'font-lock-comment-face)
                         (cond
+                         ((and date (eq cycle 'weekly)) "Cotygodniowy")
+                         ((and date (eq cycle 'odd)) "Tydzień Nieparzysty (*)")
+                         ((and date (eq cycle 'even)) "Tydzień Parzysty (*)")
+                         ((and date (plist-get entry :biweekly)) "Co 2 tygodnie (*)")
+                         (date "Pojedynczy termin")
                          (dates (format "Wybrane terminy (%s)" (mapconcat #'identity dates ", ")))
                          ((eq cycle 'weekly) "Cotygodniowy")
                          ((eq cycle 'odd) "Tydzień Nieparzysty (*)")
