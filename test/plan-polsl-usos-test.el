@@ -322,5 +322,18 @@
                    (plan-polsl-usos--data-file "x.eld"))
                  (expand-file-name "~/.local/share/plan-polsl/x.eld"))))
 
+(ert-deftest plan-polsl-usos-test-consumer-file-roundtrip ()
+  (let* ((dir (make-temp-file "plan-polsl-usos" t))
+         (plan-polsl-usos-consumer-file (expand-file-name "sub/consumer.eld" dir)))
+    (unwind-protect
+        (progn
+          (should-not (plan-polsl-usos--load-consumer))
+          (plan-polsl-usos--save-consumer "ck" "cs")
+          (should (= (file-modes plan-polsl-usos-consumer-file) #o600))
+          (should (equal (plan-polsl-usos--load-consumer) '("ck" . "cs")))
+          (plan-polsl-usos--save-consumer "ck" "")
+          (should-not (plan-polsl-usos--load-consumer)))
+      (delete-directory dir t))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here

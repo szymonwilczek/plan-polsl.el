@@ -63,6 +63,14 @@ The file is created with permissions 0600. Use a name ending in
   :type 'file
   :group 'plan-polsl-usos)
 
+(defcustom plan-polsl-usos-consumer-file
+  (plan-polsl-usos--data-file "usos-consumer.eld")
+  "File storing the consumer key and secret saved by `plan-polsl-usos-setup'.
+The file is created with permissions 0600. Use a name ending in
+\".gpg\" to have EasyPG encrypt it."
+  :type 'file
+  :group 'plan-polsl-usos)
+
 (defcustom plan-polsl-usos-default t
   "When non-nil, `plan-polsl' shows the USOS timetable once logged in.
 Logged in means a consumer key is configured and an access token is
@@ -137,6 +145,41 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
       (user-error "Brak sekretu klucza USOS: dodaj wpis auth-source dla %s (login %s)"
                   (plan-polsl-usos--host) key))
     (cons key secret)))
+
+(defun plan-polsl-usos--write-private (file comment data)
+  "Write DATA as a Lisp form to FILE with mode 0600, preceded by COMMENT."
+  (make-directory (file-name-directory (expand-file-name file)) t)
+  (with-file-modes #o600
+    (with-temp-file file
+      (insert ";; " comment "\n")
+      (let ((print-length nil)
+            (print-level nil))
+        (prin1 data (current-buffer)))
+      (insert "\n"))))
+
+(defun plan-polsl-usos--read-private (file)
+  "Return the Lisp form stored in FILE, or nil if missing or unreadable."
+  (when (file-readable-p file)
+    (condition-case nil
+        (with-temp-buffer
+          (insert-file-contents file)
+          (read (current-buffer)))
+      (error nil))))
+
+(defun plan-polsl-usos--save-consumer (key secret)
+  "Persist consumer KEY and SECRET to `plan-polsl-usos-consumer-file'."
+  (plan-polsl-usos--write-private plan-polsl-usos-consumer-file
+                                  "plan-polsl USOS consumer key, do not share"
+                                  (list :key key :secret secret)))
+
+(defun plan-polsl-usos--load-consumer ()
+  "Return (KEY . SECRET) from `plan-polsl-usos-consumer-file', or nil."
+  (let* ((data (plan-polsl-usos--read-private plan-polsl-usos-consumer-file))
+         (key (plist-get data :key))
+         (secret (plist-get data :secret)))
+    (when (and (stringp key) (not (string-empty-p key))
+               (stringp secret) (not (string-empty-p secret)))
+      (cons key secret))))
 
 (defun plan-polsl-usos--save-token (token)
   "Persist access TOKEN plist to `plan-polsl-usos-token-file' (mode 0600)."
