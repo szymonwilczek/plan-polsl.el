@@ -325,5 +325,20 @@ shown there after logging in."
     (plan-polsl-usos--delete-token)
     (message "Wylogowano z USOS")))
 
+(defun plan-polsl-usos--lang (langdict)
+  "Return the text of LANGDICT in `plan-polsl-usos-language'.
+LANGDICT is an alist like ((pl . \"Wykład\") (en . \"Lecture\")). Falls
+back to Polish, English, then any non-empty value."
+  (let ((pick (lambda (key)
+                (let ((v (alist-get key langdict)))
+                  (and (stringp v) (not (string-empty-p v)) v)))))
+    (or (funcall pick (intern plan-polsl-usos-language))
+        (funcall pick 'pl)
+        (funcall pick 'en)
+        (cl-some (lambda (kv) (and (stringp (cdr kv))
+                                   (not (string-empty-p (cdr kv)))
+                                   (cdr kv)))
+                 langdict))))
+
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here

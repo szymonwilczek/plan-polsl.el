@@ -164,5 +164,14 @@
      (should-not (plan-polsl-usos-logged-in-p))
      (should-error (plan-polsl-usos-logout) :type 'user-error))))
 
+(ert-deftest plan-polsl-usos-test-lang ()
+  (let ((plan-polsl-usos-language "pl"))
+    (should (equal (plan-polsl-usos--lang '((pl . "Wykład") (en . "Lecture"))) "Wykład"))
+    (should (equal (plan-polsl-usos--lang '((pl . "") (en . "Lecture"))) "Lecture"))
+    (should-not (plan-polsl-usos--lang '((pl) (en))))
+    (should-not (plan-polsl-usos--lang nil)))
+  (let ((plan-polsl-usos-language "en"))
+    (should (equal (plan-polsl-usos--lang '((pl . "Wykład") (en . "Lecture"))) "Lecture"))))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here
