@@ -61,6 +61,11 @@ The file is created with permissions 0600. Use a name ending in
                  (const :tag "English" "en"))
   :group 'plan-polsl-usos)
 
+(define-error 'plan-polsl-usos-error "Błąd USOS API")
+(define-error 'plan-polsl-usos-unauthorized
+              "Sesja USOS wygasła, zaloguj się ponownie (M-x plan-polsl-usos-login)"
+              'plan-polsl-usos-error)
+
 (defvar plan-polsl-usos--token 'unloaded
   "Cached access token plist, or the symbol `unloaded' before first read.")
 
@@ -138,6 +143,30 @@ consumer key, then falls back to `plan-polsl-usos-consumer-secret'."
   (and plan-polsl-usos-consumer-key
        (plan-polsl-usos--load-token)
        t))
+
+(defun plan-polsl-usos--parse-response (status body &optional form)
+  "Decode USOS API response BODY received with HTTP STATUS.
+Returns parsed JSON (alists and lists), or an alist of strings when
+FORM is non-nil (OAuth endpoints answer form-encoded). Signals
+`plan-polsl-usos-unauthorized' on 401 and `plan-polsl-usos-error' on
+any other failure, carrying the server message when there is one."
+  (if (eq status 200)
+      (if form
+          (mapcar (lambda (pair)
+                    (let ((kv (split-string pair "=")))
+                      (cons (url-unhex-string (car kv))
+                            (decode-coding-string
+                             (url-unhex-string (or (cadr kv) "")) 'utf-8))))
+                  (split-string (string-trim body) "&" t))
+        (json-parse-string body :object-type 'alist :array-type 'list
+                           :null-object nil :false-object nil))
+    (let ((msg (or (ignore-errors
+                     (alist-get 'message
+                                (json-parse-string body :object-type 'alist)))
+                   (string-trim (or body ""))
+                   "")))
+      (signal (if (eq status 401) 'plan-polsl-usos-unauthorized 'plan-polsl-usos-error)
+              (list (format "HTTP %s: %s" status msg))))))
 
 (provide 'plan-polsl-usos)
 ;;; plan-polsl-usos.el ends here

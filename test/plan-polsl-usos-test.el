@@ -81,5 +81,25 @@
      (insert "(:token"))
    (should-not (plan-polsl-usos--load-token))))
 
+(ert-deftest plan-polsl-usos-test-parse-json ()
+  (should (equal (plan-polsl-usos--parse-response
+                  200 "[{\"name\": {\"pl\": \"Wykład\"}, \"room_id\": null}]")
+                 '(((name (pl . "Wykład")) (room_id))))))
+
+(ert-deftest plan-polsl-usos-test-parse-form ()
+  (should (equal (plan-polsl-usos--parse-response
+                  200 "oauth_token=abc&oauth_token_secret=x%2By" t)
+                 '(("oauth_token" . "abc") ("oauth_token_secret" . "x+y")))))
+
+(ert-deftest plan-polsl-usos-test-parse-errors ()
+  (let ((err (should-error (plan-polsl-usos--parse-response
+                            401 "{\"message\": \"Invalid access token.\"}")
+                           :type 'plan-polsl-usos-unauthorized)))
+    (should (string-match-p "Invalid access token" (cadr err))))
+  (should-error (plan-polsl-usos--parse-response 400 "{\"message\": \"bad\"}")
+                :type 'plan-polsl-usos-error)
+  (should-error (plan-polsl-usos--parse-response 500 "<html>")
+                :type 'plan-polsl-usos-error))
+
 (provide 'plan-polsl-usos-test)
 ;;; plan-polsl-usos-test.el ends here
