@@ -155,7 +155,8 @@ takes precedence over `plan-polsl-usos-consumer-key' combined with
 
 (defun plan-polsl-usos--write-private (file comment data)
   "Write DATA as a Lisp form to FILE with mode 0600, preceded by COMMENT."
-  (make-directory (file-name-directory (expand-file-name file)) t)
+  (with-file-modes #o700
+    (make-directory (file-name-directory (expand-file-name file)) t))
   (with-file-modes #o600
     (with-temp-file file
       (insert ";; " comment "\n")

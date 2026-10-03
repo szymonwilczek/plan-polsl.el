@@ -339,6 +339,7 @@
           (should-not (plan-polsl-usos--load-consumer))
           (plan-polsl-usos--save-consumer "ck" "cs")
           (should (= (file-modes plan-polsl-usos-consumer-file) #o600))
+          (should (= (file-modes (file-name-directory plan-polsl-usos-consumer-file)) #o700))
           (should (equal (plan-polsl-usos--load-consumer) '("ck" . "cs")))
           (plan-polsl-usos--save-consumer "ck" "")
           (should-not (plan-polsl-usos--load-consumer)))
