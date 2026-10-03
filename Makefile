@@ -2,6 +2,7 @@ EMACS ?= emacs
 
 ELS = plan-polsl.el \
       plan-polsl-http.el \
+      plan-polsl-oauth.el \
       plan-polsl-parser.el \
       plan-polsl-search.el \
       plan-polsl-org.el \
