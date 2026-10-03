@@ -48,8 +48,15 @@ Prefer storing the secret in an encrypted auth-source file instead."
                  (string :tag "Consumer Secret"))
   :group 'plan-polsl-usos)
 
+(defun plan-polsl-usos--data-file (name)
+  "Return the default path of private data file NAME.
+Files live in $XDG_DATA_HOME/plan-polsl (~/.local/share/plan-polsl),
+outside `user-emacs-directory'."
+  (expand-file-name (concat "plan-polsl/" name)
+                    (or (getenv "XDG_DATA_HOME") "~/.local/share")))
+
 (defcustom plan-polsl-usos-token-file
-  (expand-file-name "plan-polsl-usos-token.eld" user-emacs-directory)
+  (plan-polsl-usos--data-file "usos-token.eld")
   "File storing the USOS access token after logging in.
 The file is created with permissions 0600. Use a name ending in
 \".gpg\" to have EasyPG encrypt it."
