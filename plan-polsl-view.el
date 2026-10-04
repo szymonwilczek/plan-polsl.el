@@ -20,6 +20,7 @@
 (declare-function evil-define-key "evil-core")
 (declare-function plan-polsl-sync "plan-polsl-ui")
 (declare-function plan-polsl-note "plan-polsl-notes")
+(declare-function plan-polsl-event-create "plan-polsl-events")
 (declare-function plan-polsl-search--get-teachers "plan-polsl-search")
 (declare-function plan-polsl-search--get-teacher-by-id "plan-polsl-search")
 
@@ -117,6 +118,7 @@ timetable lowers the limit; when nil, only the window width counts."
     (define-key map (kbd "<return>") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<mouse-2>") #'plan-polsl-view-show-detail)
     (define-key map (kbd "n") #'plan-polsl-note)
+    (define-key map (kbd "c") #'plan-polsl-event-create)
     (define-key map (kbd "?") #'plan-polsl-help)
     (define-key map (kbd "h") #'plan-polsl-help)
     map)
@@ -184,6 +186,7 @@ timetable lowers the limit; when nil, only the window width counts."
           (kbd "RET") #'plan-polsl-view-show-detail
           (kbd "<return>") #'plan-polsl-view-show-detail
           "n" #'plan-polsl-note
+          "c" #'plan-polsl-event-create
           "?" #'plan-polsl-help
           "h" #'plan-polsl-help)
         (evil-define-key* '(normal visual motion) plan-polsl-detail-mode-map

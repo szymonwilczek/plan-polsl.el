@@ -26,6 +26,11 @@
 (require 'subr-x)
 (require 'time-date)
 
+(declare-function org-read-date "org")
+(declare-function plan-polsl-view--show-week "plan-polsl-view")
+(defvar plan-polsl-view-entries)
+(defvar plan-polsl-view-active-monday)
+
 (defcustom plan-polsl-events-file nil
   "Org file holding academic events, such as tests and days off.
 Keep it in a synchronized place, such as a dotfiles repository, to
@@ -339,6 +344,137 @@ Notes and properties written under OLD by hand are kept."
   (plan-polsl-events--with-file
     (let ((found (plan-polsl-events--find event)))
       (delete-region (plist-get found :pos) (plist-get found :end-pos)))))
+
+(defun plan-polsl-events--blank-to-nil (string)
+  "Return STRING trimmed, or nil when it is blank."
+  (let ((s (string-trim (or string ""))))
+    (unless (string-empty-p s) s)))
+
+(defun plan-polsl-events--parse-hours (string)
+  "Parse hours STRING \"hh:mm-hh:mm\" or \"hh:mm\" into (FROM . TO).
+Return t for a blank STRING (whole day) and nil when it is invalid."
+  (let ((s (string-trim (or string ""))))
+    (cond
+     ((string-empty-p s) t)
+     ((string-match "\\`\\([0-9]\\{1,2\\}:[0-5][0-9]\\)\\(?:[ \t]*-[ \t]*\\([0-9]\\{1,2\\}:[0-5][0-9]\\)\\)?\\'" s)
+      (let ((from (plan-polsl-events--pad-time (match-string 1 s)))
+            (to (plan-polsl-events--pad-time (match-string 2 s))))
+        (when (and (string< from "24:00") (or (null to) (string< from to)))
+          (cons from to)))))))
+
+(defun plan-polsl-events--read-hours (prompt initial)
+  "Read hours with PROMPT and INITIAL input until they are valid.
+Return (FROM . TO), or nil for the whole day."
+  (let ((hours nil))
+    (while (null hours)
+      (setq hours (plan-polsl-events--parse-hours (read-string prompt initial)))
+      (unless hours
+        (message "Nieprawidłowe godziny, wpisz np. 12:00-16:00")
+        (sit-for 1.5)))
+    (if (eq hours t) nil hours)))
+
+(defun plan-polsl-events--read-date (prompt default)
+  "Read a date with PROMPT and the Org calendar, starting at DEFAULT.
+DEFAULT and the result are \"YYYY-MM-DD\"."
+  (require 'org)
+  (org-read-date nil nil nil prompt
+                 (and default (date-to-time (concat default " 12:00")))))
+
+(defun plan-polsl-events--courses ()
+  "Return course names known from the timetable buffer and the events."
+  (delete-dups
+   (delq nil (append
+              (mapcar (lambda (e) (or (plist-get e :full-title) (plist-get e :title)))
+                      (bound-and-true-p plan-polsl-view-entries))
+              (mapcar (lambda (ev) (plist-get ev :course))
+                      (plan-polsl-events-list))))))
+
+(defun plan-polsl-events-read (defaults)
+  "Read an event in the minibuffer, step by step, prefilled with DEFAULTS.
+DEFAULTS is an event plist; missing fields are asked without a
+suggestion. Return the new event plist."
+  (let* ((labels (mapcar (lambda (type) (cons (nth 1 type) (car type)))
+                         plan-polsl-events-types))
+         (type (cdr (assoc (completing-read
+                            "Typ wydarzenia: " labels nil t nil nil
+                            (and (plist-get defaults :type)
+                                 (plan-polsl-events-type-label (plist-get defaults :type))))
+                           labels)))
+         (cancels (nth 2 (assoc type plan-polsl-events-types)))
+         (start (plan-polsl-events--read-date "Data: " (plist-get defaults :start)))
+         (end (if cancels
+                  (plan-polsl-events--read-date
+                   "Do dnia (RET = ten sam dzień): "
+                   (let ((end (plist-get defaults :end)))
+                     (if (and end (not (string< end start))) end start)))
+                start))
+         (_ (when (string< end start)
+              (user-error "Koniec (%s) jest przed początkiem (%s)" end start)))
+         (hours (plan-polsl-events--read-hours
+                 (if (equal start end)
+                     "Godziny (np. 12:00-16:00, puste = cały dzień): "
+                   "Od godziny pierwszego dnia do godziny ostatniego (puste = całe dni): ")
+                 (let ((from (plist-get defaults :from))
+                       (to (plist-get defaults :to)))
+                   (cond ((and from to) (format "%s-%s" from to))
+                         (from from)))))
+         (course (unless cancels
+                   (plan-polsl-events--blank-to-nil
+                    (completing-read "Przedmiot (puste = brak): "
+                                     (plan-polsl-events--courses) nil nil
+                                     (plist-get defaults :course)))))
+         (room (unless cancels
+                 (plan-polsl-events--blank-to-nil
+                  (read-string "Sala (puste = brak): " (plist-get defaults :room)))))
+         (title (or (plan-polsl-events--blank-to-nil
+                     (read-string "Nazwa: "
+                                  (if (equal (plist-get defaults :type) type)
+                                      (plist-get defaults :title)
+                                    (plan-polsl-events-type-label type))))
+                    (plan-polsl-events-type-label type))))
+    (list :type type :title title :start start :end end
+          :from (car hours) :to (cdr hours)
+          :course course :room room)))
+
+(defun plan-polsl-events--refresh-view ()
+  "Render the timetable in the current buffer again, if it shows one."
+  (when (and (derived-mode-p 'plan-polsl-mode) plan-polsl-view-active-monday)
+    (plan-polsl-view--show-week plan-polsl-view-active-monday)))
+
+(defun plan-polsl-events--class-defaults ()
+  "Return event defaults taken from the class at point, if any."
+  (let ((entry (get-text-property (point) 'plan-polsl-entry)))
+    (when (and entry (not (plist-get entry :event)))
+      (list :from (plist-get entry :start-time)
+            :to (plist-get entry :end-time)
+            :course (or (plist-get entry :full-title) (plist-get entry :title))
+            :room (car (plist-get entry :rooms))))))
+
+(defun plan-polsl-events--check-file ()
+  "Return non-nil when `plan-polsl-events-file' is set, else explain it."
+  (or plan-polsl-events-file
+      (progn
+        (message (concat "Wydarzenia: najpierw ustaw plik w konfiguracji, np. "
+                         "(setq plan-polsl-events-file \"~/dotfiles/polsl/wydarzenia.org\")"))
+        nil)))
+
+;;;###autoload
+(defun plan-polsl-event-create ()
+  "Create an event, such as a test or rector's hours, in the minibuffer.
+The date starts at the timetable day at point; on a class, its hours,
+course and room are suggested. The event is added to
+`plan-polsl-events-file'."
+  (interactive)
+  (when (plan-polsl-events--check-file)
+    (let ((event (plan-polsl-events-read
+                  (append (list :start (or (get-text-property (point) 'plan-polsl-date)
+                                           (format-time-string "%F")))
+                          (plan-polsl-events--class-defaults)))))
+      (plan-polsl-events-add event)
+      (plan-polsl-events--refresh-view)
+      (message "Dodano: %s (%s)" (plist-get event :title)
+               (plan-polsl-events-timestamp event))
+      event)))
 
 (provide 'plan-polsl-events)
 ;;; plan-polsl-events.el ends here

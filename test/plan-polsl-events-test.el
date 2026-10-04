@@ -199,5 +199,82 @@ Rozdziały 1-3.
     (should-not (string-match-p "Rozdziały" (plan-polsl-events-test--file-string)))
     (should-error (plan-polsl-events-delete '(:title "Brak")) :type 'user-error))))
 
+(defmacro plan-polsl-events-test--answers (answers &rest body)
+  "Run BODY answering minibuffer prompts from the ANSWERS alist.
+Keys are prompt prefixes, values the answers; prompts and their
+initial inputs are recorded in `plan-polsl-events-test--asked'."
+  (declare (indent 1))
+  `(let ((answers ,answers))
+     (cl-letf* ((answer (lambda (prompt initial)
+                          (push (cons prompt initial) plan-polsl-events-test--asked)
+                          (or (cdr (cl-find-if (lambda (a) (string-prefix-p (car a) prompt))
+                                               answers))
+                              initial "")))
+                ((symbol-function 'read-string)
+                 (lambda (prompt &optional initial &rest _) (funcall answer prompt initial)))
+                ((symbol-function 'completing-read)
+                 (lambda (prompt _coll &optional _pred _req initial _hist def &rest _)
+                   (funcall answer prompt (or initial def))))
+                ((symbol-function 'org-read-date)
+                 (lambda (_with-time _to-time _from-string prompt &optional default &rest _)
+                   (funcall answer prompt (and default (format-time-string "%F" default))))))
+       ,@body)))
+
+(defvar plan-polsl-events-test--asked nil
+  "Prompts asked by `plan-polsl-events-test--answers', newest first.")
+
+(ert-deftest plan-polsl-events-test-parse-hours ()
+  (should (equal (plan-polsl-events--parse-hours " 9:00 - 11:30 ") '("09:00" . "11:30")))
+  (should (equal (plan-polsl-events--parse-hours "12:00") '("12:00")))
+  (should (eq (plan-polsl-events--parse-hours "") t))
+  (should-not (plan-polsl-events--parse-hours "12:00-11:00"))
+  (should-not (plan-polsl-events--parse-hours "rano")))
+
+(ert-deftest plan-polsl-events-test-create-on-class ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (let ((plan-polsl-events-test--asked nil))
+      (with-temp-buffer
+        (insert (propertize "  14:00 - 16:15  [Laboratorium]  ADiIO\n"
+                            'plan-polsl-date "2026-11-26"
+                            'plan-polsl-entry
+                            '(:title "ADiIO" :full-title "Analiza danych i inteligencja obliczeniowa"
+                                     :start-time "14:00" :end-time "16:15" :rooms ("416b"))))
+        (goto-char (point-min))
+        (plan-polsl-events-test--answers '(("Typ" . "Kolokwium") ("Nazwa" . "Kolokwium 2"))
+                                         (plan-polsl-event-create)))
+      ;; the class prefilled the date, hours, course and room
+      (should (equal (cdr (assoc "Data: " plan-polsl-events-test--asked)) "2026-11-26"))
+      (should-not (cl-find-if (lambda (a) (string-prefix-p "Do dnia" (car a)))
+                              plan-polsl-events-test--asked))
+      (should (equal (cdr (assoc "Nazwa: " plan-polsl-events-test--asked)) "Kolokwium"))
+      (should (equal (plan-polsl-events--key
+                      (cl-find "Kolokwium 2" (plan-polsl-events-list)
+                               :key (lambda (e) (plist-get e :title)) :test #'equal))
+                     '("kolokwium" "Kolokwium 2" "2026-11-26" "2026-11-26" "14:00" "16:15"
+                       "Analiza danych i inteligencja obliczeniowa" "416b")))))))
+
+(ert-deftest plan-polsl-events-test-create-days-off ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (let ((plan-polsl-events-test--asked nil))
+      (with-temp-buffer
+        (plan-polsl-events-test--answers '(("Typ" . "Dzień wolny") ("Data" . "2027-04-01")
+                                           ("Do dnia" . "2027-04-06") ("Nazwa" . "Wielkanoc"))
+                                         (plan-polsl-event-create)))
+      ;; days off ask for no course or room
+      (should-not (cl-find-if (lambda (a) (string-prefix-p "Przedmiot" (car a)))
+                              plan-polsl-events-test--asked))
+      (let ((ev (car (last (plan-polsl-events-list)))))
+        (should (equal (plist-get ev :title) "Wielkanoc"))
+        (should (equal (plist-get ev :end) "2027-04-06"))
+        (should-not (plist-get ev :from)))))))
+
+(ert-deftest plan-polsl-events-test-create-unset ()
+  (let ((plan-polsl-events-file nil))
+    (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) (error "Should not ask")))
+              ((symbol-function 'message) #'ignore))
+      (should-not (plan-polsl-event-create)))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here
