@@ -276,5 +276,54 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
               ((symbol-function 'message) #'ignore))
       (should-not (plan-polsl-event-create)))))
 
+(ert-deftest plan-polsl-events-test-at-point ()
+  (plan-polsl-events-test--with-file
+   (let ((test (nth 1 (plan-polsl-events-list))))
+     (with-temp-buffer
+       (insert (propertize "x" 'plan-polsl-entry (list :event test)))
+       (goto-char (point-min))
+       (should (eq (plan-polsl-events-at-point) test)))
+     (with-temp-buffer
+       (insert (propertize "Czwartek" 'plan-polsl-date "2026-11-19"))
+       (goto-char (point-min))
+       (should (equal (plist-get (plan-polsl-events-at-point) :title) "Kolokwium 1")))
+     (with-temp-buffer
+       (insert (propertize "Piątek" 'plan-polsl-date "2026-11-20"))
+       (goto-char (point-min))
+       (should-error (plan-polsl-events-at-point) :type 'user-error))
+     (with-temp-buffer
+       (should-error (plan-polsl-events-at-point) :type 'user-error)))))
+
+(ert-deftest plan-polsl-events-test-at-point-choice ()
+  (plan-polsl-events-test--with-file
+   (with-temp-file plan-polsl-events-file
+     (insert "* A :kolokwium:\n<2026-11-19 czw 10:00>\n* B :egzamin:\n<2026-11-19 czw 12:00>\n"))
+   (with-temp-buffer
+     (insert (propertize "Czwartek" 'plan-polsl-date "2026-11-19"))
+     (goto-char (point-min))
+     (cl-letf (((symbol-function 'completing-read)
+                (lambda (_prompt choices &rest _)
+                  (car (cl-find-if (lambda (c) (string-match-p ": B " (car c))) choices)))))
+       (should (equal (plist-get (plan-polsl-events-at-point) :title) "B"))))))
+
+(ert-deftest plan-polsl-events-test-edit ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (let ((plan-polsl-events-test--asked nil))
+      (with-temp-buffer
+        (insert (propertize "Czwartek" 'plan-polsl-date "2026-11-19"))
+        (goto-char (point-min))
+        (plan-polsl-events-test--answers '(("Godziny" . "15:00-16:00"))
+                                         (plan-polsl-event-edit)))
+      ;; every step is prefilled with the current values
+      (should (equal (cdr (assoc "Typ wydarzenia: " plan-polsl-events-test--asked)) "Kolokwium"))
+      (should (equal (cdr (assoc "Nazwa: " plan-polsl-events-test--asked)) "Kolokwium 1"))
+      (should (equal (cdr (assoc "Sala (puste = brak): " plan-polsl-events-test--asked)) "416b"))
+      (let ((ev (nth 1 (plan-polsl-events-list))))
+        (should (equal (plist-get ev :title) "Kolokwium 1"))
+        (should (equal (plist-get ev :from) "15:00"))
+        (should (equal (plist-get ev :course) "Analiza danych i inteligencja obliczeniowa")))
+      (should (string-match-p "Rozdziały 1-3" (plan-polsl-events-test--file-string)))))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here

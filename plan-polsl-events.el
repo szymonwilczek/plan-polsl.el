@@ -476,5 +476,42 @@ course and room are suggested. The event is added to
                (plan-polsl-events-timestamp event))
       event)))
 
+(defun plan-polsl-events--describe (event)
+  "Return a one-line description of EVENT for completion."
+  (format "%s: %s (%s)"
+          (plan-polsl-events-type-label (plist-get event :type))
+          (plist-get event :title)
+          (plan-polsl-events-timestamp event)))
+
+(defun plan-polsl-events-at-point ()
+  "Return the event at point in the timetable.
+That is the event on the current line, else an event on the day at
+point, chosen in the minibuffer when there are several."
+  (let* ((entry (get-text-property (point) 'plan-polsl-entry))
+         (date (get-text-property (point) 'plan-polsl-date))
+         (events (cond ((plist-get entry :event) (list (plist-get entry :event)))
+                       (date (plan-polsl-events-on-date date))
+                       (t (user-error "Ustaw kursor na dniu z wydarzeniem")))))
+    (cond
+     ((null events) (user-error "Brak wydarzeń w tym dniu"))
+     ((null (cdr events)) (car events))
+     (t (let ((choices (mapcar (lambda (ev) (cons (plan-polsl-events--describe ev) ev))
+                               events)))
+          (cdr (assoc (completing-read "Wydarzenie: " choices nil t) choices)))))))
+
+;;;###autoload
+(defun plan-polsl-event-edit ()
+  "Edit the event at point in the minibuffer, prefilled with its values.
+See `plan-polsl-events-at-point' for which event is edited."
+  (interactive)
+  (when (plan-polsl-events--check-file)
+    (let* ((old (plan-polsl-events-at-point))
+           (new (plan-polsl-events-read old)))
+      (plan-polsl-events-update old new)
+      (plan-polsl-events--refresh-view)
+      (message "Zapisano: %s (%s)" (plist-get new :title)
+               (plan-polsl-events-timestamp new))
+      new)))
+
 (provide 'plan-polsl-events)
 ;;; plan-polsl-events.el ends here
