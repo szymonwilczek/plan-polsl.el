@@ -18,6 +18,7 @@
 ;; external references for clean byte-compilation
 (declare-function evil-define-key "evil-core")
 (declare-function plan-polsl-sync "plan-polsl-ui")
+(declare-function plan-polsl-note "plan-polsl-notes")
 (declare-function plan-polsl-search--get-teachers "plan-polsl-search")
 (declare-function plan-polsl-search--get-teacher-by-id "plan-polsl-search")
 
@@ -100,6 +101,7 @@ When nil, the width of the window showing the timetable is used."
     (define-key map (kbd "RET") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<return>") #'plan-polsl-view-show-detail)
     (define-key map (kbd "<mouse-2>") #'plan-polsl-view-show-detail)
+    (define-key map (kbd "n") #'plan-polsl-note)
     (define-key map (kbd "?") #'plan-polsl-help)
     (define-key map (kbd "h") #'plan-polsl-help)
     map)
@@ -166,6 +168,7 @@ When nil, the width of the window showing the timetable is used."
           (kbd "S-TAB") #'plan-polsl-prev-entry
           (kbd "RET") #'plan-polsl-view-show-detail
           (kbd "<return>") #'plan-polsl-view-show-detail
+          "n" #'plan-polsl-note
           "?" #'plan-polsl-help
           "h" #'plan-polsl-help)
         (evil-define-key* '(normal visual motion) plan-polsl-detail-mode-map

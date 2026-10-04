@@ -7,7 +7,7 @@
 
 (require 'cl-lib)
 (require 'ert)
-(require 'plan-polsl-notes)
+(require 'plan-polsl)
 
 (ert-deftest plan-polsl-notes-test-abbreviation ()
   (should (equal (plan-polsl-notes--abbreviation
@@ -110,6 +110,11 @@
   (with-temp-buffer
     (insert "Poniedziałek")
     (should-error (call-interactively #'plan-polsl-note) :type 'user-error)))
+
+(ert-deftest plan-polsl-notes-test-timetable-key ()
+  (with-temp-buffer
+    (plan-polsl-mode)
+    (should (eq (key-binding (kbd "n")) #'plan-polsl-note))))
 
 (provide 'plan-polsl-notes-test)
 ;;; plan-polsl-notes-test.el ends here
