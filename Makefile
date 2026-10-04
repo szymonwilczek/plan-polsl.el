@@ -11,6 +11,7 @@ ELS = plan-polsl.el \
       plan-polsl-org.el \
       plan-polsl-view.el \
       plan-polsl-notes.el \
+      plan-polsl-events.el \
       plan-polsl-ui.el
 
 ELCS = $(ELS:.el=.elc)
