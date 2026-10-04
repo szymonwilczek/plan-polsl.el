@@ -269,8 +269,13 @@ timetable lowers the limit; when nil, only the window width counts."
      ((eq cycle 'even) (eq week-cycle 'even))
      (t t))))
 
-(defun plan-polsl-view--type-badge (type-str &optional face)
-  "Format TYPE-STR with FACE or the badge face of its class type."
+(defconst plan-polsl-view--badge-width 12
+  "Narrowest class type column, without the brackets.")
+
+(defun plan-polsl-view--type-badge (type-str &optional face width)
+  "Format TYPE-STR with FACE or the badge face of its class type.
+The type is padded to WIDTH columns, `plan-polsl-view--badge-width'
+by default."
   (let* ((ltype (downcase (or type-str "")))
          (face (cond
                 (face face)
@@ -278,7 +283,21 @@ timetable lowers the limit; when nil, only the window width counts."
                 ((string-match-p "lab" ltype) 'plan-polsl-lab-face)
                 ((string-match-p "sem" ltype) 'plan-polsl-seminar-face)
                 (t 'font-lock-type-face))))
-    (propertize (format "[%-12s]" (or type-str "Zajęcia")) 'face face)))
+    (propertize (format "[%s]" (plan-polsl-view--pad-column
+                                (or type-str "Zajęcia")
+                                (or width plan-polsl-view--badge-width)))
+                'face face)))
+
+(defun plan-polsl-view--compute-badge-width (day-groups)
+  "Return the class type column width shared by all DAY-GROUPS.
+That is the widest type, so a long one such as \"Seminarium
+dyplomowe\" moves the course names of the whole week, not of its
+line only."
+  (let ((max-w plan-polsl-view--badge-width))
+    (dotimes (i 7)
+      (dolist (e (aref day-groups i))
+        (setq max-w (max max-w (string-width (or (plist-get e :type) "Zajęcia"))))))
+    max-w))
 
 (defun plan-polsl-view--pad-column (str width)
   "Pad STR with spaces so that visual `string-width' matches WIDTH."
@@ -286,8 +305,11 @@ timetable lowers the limit; when nil, only the window width counts."
          (padding (make-string (max 0 (- width sw)) ?\s)))
     (concat (or str "") padding)))
 
-(defconst plan-polsl-view--subject-column 33
-  "Column at which the course name starts in a timetable line.")
+(defun plan-polsl-view--subject-column (&optional badge-width)
+  "Return the column at which the course name starts in a timetable line.
+BADGE-WIDTH is the class type column width, see
+`plan-polsl-view--type-badge'."
+  (+ 21 (or badge-width plan-polsl-view--badge-width)))
 
 (defconst plan-polsl-view--min-meta-width 30
   "Columns left for meta data when the course name column is limited.")
@@ -360,11 +382,11 @@ exceeds it. When WIDTH is nil, everything stays on one line."
       (when line (push line lines))
       (nreverse lines))))
 
-(defun plan-polsl-view--format-entry-line (entry subject-col-width &optional width)
+(defun plan-polsl-view--format-entry-line (entry subject-col-width &optional width badge-width)
   "Format propertized DISPLAY-STRING for ENTRY aligned with SUBJECT-COL-WIDTH.
 A course name wider than SUBJECT-COL-WIDTH and meta data that would
 not fit in WIDTH columns continue on further lines, aligned under the
-first one."
+first one. The class type is padded to BADGE-WIDTH columns."
   (let* ((start (plist-get entry :start-time))
          (end (plist-get entry :end-time))
          (title (plist-get entry :title))
@@ -381,7 +403,8 @@ first one."
                                                      (t "cały dzień")))
                                'face 'plan-polsl-time-face))
          (badge (plan-polsl-view--type-badge
-                 type (and (plist-get entry :event) 'plan-polsl-event-face)))
+                 type (and (plist-get entry :event) 'plan-polsl-event-face)
+                 badge-width))
          (title-str (propertize (format "%s%s"
                                         (if (and biweekly (not (string-prefix-p "*" title))) "* " "")
                                         title)
@@ -713,11 +736,12 @@ A cancelled class is a copy of its entry with the event as :cancelled."
                         cancelling " • "))
      'face 'plan-polsl-event-face)))
 
-(defun plan-polsl-view--compute-subject-width (day-groups &optional width)
+(defun plan-polsl-view--compute-subject-width (day-groups &optional width badge-width)
   "Compute maximum subject title column width across all DAY-GROUPS.
 With WIDTH, the column leaves at least
 `plan-polsl-view--min-meta-width' columns of a WIDTH-wide line for
-meta data; longer course names are wrapped."
+meta data; longer course names are wrapped. BADGE-WIDTH is the class
+type column width."
   (let ((max-w 18))
     (dotimes (i 7)
       (dolist (e (aref day-groups i))
@@ -730,7 +754,7 @@ meta data; longer course names are wrapped."
                                           title sec-str))))
           (setq max-w (max max-w len)))))
     (if width
-        (min max-w (max 18 (- width plan-polsl-view--subject-column 3
+        (min max-w (max 18 (- width (plan-polsl-view--subject-column badge-width) 3
                               plan-polsl-view--min-meta-width)))
       max-w)))
 
@@ -761,7 +785,8 @@ minus one column for the continuation glyph, but at most
                        monday-time events)
                       monday-time events))
          (width (plan-polsl-view--width buf))
-         (max-subj-w (plan-polsl-view--compute-subject-width day-groups width))
+         (badge-w (plan-polsl-view--compute-badge-width day-groups))
+         (max-subj-w (plan-polsl-view--compute-subject-width day-groups width badge-w))
          (rendered-days (make-vector 7 nil))
          (all-lines nil)
          (path-lines (and path (plan-polsl-view--wrap-words path width)))
@@ -781,7 +806,7 @@ minus one column for the continuation glyph, but at most
     (dotimes (i 7)
       (let ((day-lines nil))
         (dolist (e (aref day-groups i))
-          (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w width)))
+          (let ((line-str (plan-polsl-view--format-entry-line e max-subj-w width badge-w)))
             (push line-str day-lines)
             (dolist (l (split-string (substring-no-properties line-str) "\n"))
               (push l all-lines))))

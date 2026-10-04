@@ -367,6 +367,25 @@
     (aset days 0 (list (list :title "Fizyka")))
     (should (= (plan-polsl-view--compute-subject-width days 120) 18))))
 
+;; a long class type widens the type column of every line
+(ert-deftest plan-polsl-view-test-long-type-alignment ()
+  (let* ((days (make-vector 7 nil))
+         (seminar (list :start-time "09:30" :end-time "11:00" :type "Seminarium dyplomowe"
+                        :title "Seminarium dyplomowe" :rooms '("727")))
+         (lab (list :start-time "11:00" :end-time "14:00" :type "Laboratorium"
+                    :title "Budowa komputerów" :rooms '("827"))))
+    (aset days 3 (list seminar lab))
+    (let* ((badge-w (plan-polsl-view--compute-badge-width days))
+           (subj-w (plan-polsl-view--compute-subject-width days 120 badge-w))
+           (bars (mapcar (lambda (e)
+                           (string-match " │" (plan-polsl-view--format-entry-line
+                                               e subj-w 120 badge-w)))
+                         (list seminar lab))))
+      (should (= badge-w 20))
+      (should (eq (car bars) (cadr bars))))
+    (aset days 3 (list lab))
+    (should (= (plan-polsl-view--compute-badge-width days) 12))))
+
 (ert-deftest plan-polsl-view-test-wrap-keys ()
   (should (equal (plan-polsl-view--wrap-keys '("[q] Zamknij" "[r] Odśwież") nil)
                  '("  [q] Zamknij   [r] Odśwież")))
