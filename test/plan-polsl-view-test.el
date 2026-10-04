@@ -86,11 +86,13 @@
 "
    (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
      (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                        (search-forward "Poniedziałek (05.10.2026)")
                                         ;; all-day first, then by start time, classes included
                                         (should (re-search-forward "cały dzień +\\[Projekt +\\] +Oddanie projektu" nil t))
                                         (should (re-search-forward "07:00 - 08:00 +\\[Kolokwium +\\] +Kolokwium 1 +│ Przedmiot: Automatyka i Robotyka • Sala: 416b" nil t))
                                         (should (search-forward "08:30 - 10:00" nil t))
                                         (goto-char (point-min))
+                                        (search-forward "Poniedziałek (05.10.2026)")
                                         (search-forward "Kolokwium 1")
                                         (let ((entry (get-text-property (point) 'plan-polsl-entry)))
                                           (should (equal (plist-get entry :full-title) "Automatyka i Robotyka"))

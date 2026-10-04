@@ -38,6 +38,12 @@ share the events between devices."
   :type '(choice (const :tag "Not Set" nil) file)
   :group 'plan-polsl)
 
+(defcustom plan-polsl-events-upcoming-days 14
+  "Days ahead for which events are listed in the timetable header.
+Days off and rector's or dean's hours are not listed. 0 disables it."
+  :type 'integer
+  :group 'plan-polsl)
+
 (defconst plan-polsl-events-types
   '(("rektorskie" "Godziny rektorskie" t)
     ("dziekanskie" "Godziny dziekańskie" t)
@@ -162,6 +168,37 @@ example after pulling the repository holding it."
                       (and (not (string< date (plist-get ev :start)))
                            (not (string< (plist-get ev :end) date))))
                     (or events (plan-polsl-events-list))))
+
+(defun plan-polsl-events-upcoming (&optional today events)
+  "Return a description of EVENTS starting within the upcoming days.
+TODAY defaults to the current date as \"YYYY-MM-DD\"; EVENTS default
+to all events. See `plan-polsl-events-upcoming-days'. Return nil when
+there are none."
+  (let* ((today (or today (format-time-string "%F")))
+         (now (date-to-time (concat today " 12:00")))
+         (items
+          (delq nil
+                (mapcar
+                 (lambda (ev)
+                   (let ((days (round (/ (float-time
+                                          (time-subtract
+                                           (date-to-time (concat (plist-get ev :start) " 12:00"))
+                                           now))
+                                         86400))))
+                     (when (and (not (plan-polsl-events-cancelling-p ev))
+                                (<= 0 days)
+                                (< days plan-polsl-events-upcoming-days))
+                       (format "%s (%s, %s)"
+                               (plist-get ev :title)
+                               (format-time-string "%d.%m" (date-to-time
+                                                            (concat (plist-get ev :start) " 12:00")))
+                               (pcase days
+                                 (0 "dziś")
+                                 (1 "jutro")
+                                 (_ (format "za %d dni" days)))))))
+                 (or events (plan-polsl-events-list))))))
+    (when items
+      (concat "Najbliższe: " (mapconcat #'identity items " • ")))))
 
 (defun plan-polsl-events-hours-on (event date)
   "Return (FROM . TO) hours EVENT occupies on DATE.

@@ -770,9 +770,11 @@ minus one column for the continuation glyph, but at most
                          (format "Plan Zajęć: %s (ID: %s)" title id))
                        width))
          (week-lines (plan-polsl-view--wrap-words (format "Tydzień: %s" week-label) width))
+         (upcoming-lines (when-let* ((text (plan-polsl-events-upcoming nil events)))
+                           (plan-polsl-view--wrap-words text width)))
          (key-lines (plan-polsl-view--wrap-keys plan-polsl-view--header-keys width)))
 
-    (dolist (l (append path-lines title-lines week-lines key-lines))
+    (dolist (l (append path-lines title-lines week-lines upcoming-lines key-lines))
       (push l all-lines))
 
     (dotimes (i 7)
@@ -805,6 +807,7 @@ minus one column for the continuation glyph, but at most
             (insert-lines path-lines 'font-lock-comment-face)
             (insert-lines title-lines '(:weight bold :height 1.15))
             (insert-lines week-lines '(:weight bold :foreground "#51afef"))
+            (insert-lines upcoming-lines 'plan-polsl-event-face)
             (insert "\n")
             (insert-lines key-lines 'font-lock-comment-face))
           (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")

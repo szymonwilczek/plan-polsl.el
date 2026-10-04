@@ -338,5 +338,20 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
         (should (plan-polsl-event-delete)))
       (should (= (length (plan-polsl-events-list)) 2))))))
 
+(ert-deftest plan-polsl-events-test-upcoming ()
+  (plan-polsl-events-test--with-file
+   (with-temp-file plan-polsl-events-file
+     (insert "* Kolokwium 1 :kolokwium:\n<2026-11-19 czw 10:00>\n"
+             "* Projekt :projekt:\n<2026-11-20 pią>\n"
+             "* Rektorskie :rektorskie:\n<2026-11-19 czw>\n"
+             "* Egzamin :egzamin:\n<2027-02-01 pon>\n"))
+   (should (equal (plan-polsl-events-upcoming "2026-11-19")
+                  "Najbliższe: Kolokwium 1 (19.11, dziś) • Projekt (20.11, jutro)"))
+   (should (equal (plan-polsl-events-upcoming "2026-11-14")
+                  "Najbliższe: Kolokwium 1 (19.11, za 5 dni) • Projekt (20.11, za 6 dni)"))
+   (should-not (plan-polsl-events-upcoming "2026-11-21"))
+   (let ((plan-polsl-events-upcoming-days 0))
+     (should-not (plan-polsl-events-upcoming "2026-11-19")))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here
