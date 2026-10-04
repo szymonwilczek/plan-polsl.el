@@ -61,9 +61,10 @@
   "Face for room, teacher, and section metadata."
   :group 'plan-polsl-faces)
 
-(defcustom plan-polsl-view-width nil
-  "Column at which long room, group and lecturer lists are wrapped.
-When nil, the width of the window showing the timetable is used."
+(defcustom plan-polsl-view-width 120
+  "Maximum width of the timetable in columns.
+Longer lines are wrapped between words. A narrower window showing the
+timetable lowers the limit; when nil, only the window width counts."
   :type '(choice (const :tag "Window width" nil) integer)
   :group 'plan-polsl)
 
@@ -120,7 +121,6 @@ When nil, the width of the window showing the timetable is used."
   "Render the timetable in WINDOW again when its width changed."
   (with-current-buffer (window-buffer window)
     (when (and plan-polsl-view-active-monday
-               (not plan-polsl-view-width)
                plan-polsl-view--rendered-width
                (/= plan-polsl-view--rendered-width
                    (plan-polsl-view--width (current-buffer))))
@@ -567,11 +567,14 @@ lines, aligned under the first one."
 
 (defun plan-polsl-view--width (buf)
   "Return the column limit for rendering BUF.
-Uses `plan-polsl-view-width', else the body width of a window showing
-BUF or the selected window, minus one column for the continuation
-glyph."
-  (or plan-polsl-view-width
-      (1- (window-body-width (or (get-buffer-window buf t) (selected-window))))))
+That is the body width of a window showing BUF or the selected window,
+minus one column for the continuation glyph, but at most
+`plan-polsl-view-width'."
+  (let ((window-width (1- (window-body-width
+                           (or (get-buffer-window buf t) (selected-window))))))
+    (if plan-polsl-view-width
+        (min plan-polsl-view-width window-width)
+      window-width)))
 
 (defun plan-polsl-view--render-buffer (entries meta id type-val monday-time &optional target-buf)
   "Render ENTRIES and META for ID, TYPE-VAL and MONDAY-TIME into TARGET-BUF."
@@ -608,7 +611,8 @@ glyph."
               (push l all-lines))))
         (aset rendered-days i (nreverse day-lines))))
 
-    (let* ((max-w (max 75 (apply #'max (mapcar #'string-width all-lines))))
+    (let* ((max-w (min (max 75 (apply #'max (mapcar #'string-width all-lines)))
+                       width))
            (sep-line (make-string max-w ?─)))
       (with-current-buffer buf
         (let ((inhibit-read-only t))

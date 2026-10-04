@@ -237,6 +237,20 @@
     (dolist (l (cdr lines))
       (should (string-blank-p (substring l 0 bar))))))
 
+(ert-deftest plan-polsl-view-test-width-limit ()
+  (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
+    (let ((plan-polsl-view-width 120))
+      (should (= (plan-polsl-view--width (current-buffer)) 120)))
+    (let ((plan-polsl-view-width 300))
+      (should (= (plan-polsl-view--width (current-buffer)) 199)))
+    (let ((plan-polsl-view-width nil))
+      (should (= (plan-polsl-view--width (current-buffer)) 199))))
+  (let ((plan-polsl-view-width 60))
+    (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                       (should (= plan-polsl-view--rendered-width 60))
+                                       (should (search-forward (make-string 60 ?─) nil t))
+                                       (should-not (search-forward (make-string 61 ?─) nil t)))))
+
 (ert-deftest plan-polsl-view-test-rerender-on-resize ()
   (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
                                      (save-window-excursion
