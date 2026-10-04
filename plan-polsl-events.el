@@ -4,7 +4,7 @@
 ;; Keywords: calendar, polsl, org
 
 ;;; Commentary:
-;; Events such as rector's hours, days off, tests and exams are kept in
+;; Events such as dean's hours, days off, tests and exams are kept in
 ;; one Org file chosen by the user, typically in a synchronized
 ;; repository, so every device sees the same events.
 ;; Each event is a heading tagged with its type, with an active
@@ -17,7 +17,7 @@
 ;;   :END:
 ;;   <2026-11-19 czw 14:00-16:15>
 ;;
-;; Rector's and dean's hours and days off cancel the classes they
+;; Dean's hours and days off cancel the classes they
 ;; overlap; the other types are shown next to the classes.
 
 ;;; Code:
@@ -41,13 +41,12 @@ share the events between devices."
 
 (defcustom plan-polsl-events-upcoming-days 14
   "Days ahead for which events are listed in the timetable header.
-Days off and rector's or dean's hours are not listed. 0 disables it."
+Days off and dean's hours are not listed. 0 disables it."
   :type 'integer
   :group 'plan-polsl)
 
 (defconst plan-polsl-events-types
-  '(("rektorskie" "Godziny rektorskie" t)
-    ("dziekanskie" "Godziny dziekańskie" t)
+  '(("dziekanskie" "Godziny dziekańskie" t)
     ("wolne" "Dzień wolny" t)
     ("kolokwium" "Kolokwium" nil)
     ("egzamin" "Egzamin" nil)
@@ -514,7 +513,7 @@ suggestion. Return the new event plist."
 
 ;;;###autoload
 (defun plan-polsl-event-create ()
-  "Create an event, such as a test or rector's hours, in the minibuffer.
+  "Create an event, such as a test or dean's hours, in the minibuffer.
 The date starts at the timetable day at point; on a class, its hours,
 course and room are suggested. The event is added to
 `plan-polsl-events-file'."

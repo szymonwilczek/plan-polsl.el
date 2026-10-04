@@ -15,7 +15,7 @@
 (defconst plan-polsl-events-test--org
   "#+title: Wydarzenia PolSL
 
-* Godziny rektorskie: inauguracja :rektorskie:
+* Godziny dziekańskie: inauguracja :dziekanskie:
 <2026-10-01 czw 12:00-18:00>
 
 * Kolokwium 1 :kolokwium:uczelnia:
@@ -64,7 +64,7 @@ Rozdziały 1-3.
   (plan-polsl-events-test--with-file
    (let ((events (plan-polsl-events-list)))
      (should (equal (mapcar (lambda (e) (plist-get e :type)) events)
-                    '("rektorskie" "kolokwium" "wolne")))
+                    '("dziekanskie" "kolokwium" "wolne")))
      (let ((test (nth 1 events)))
        (should (equal (plist-get test :title) "Kolokwium 1"))
        (should (equal (plist-get test :course) "Analiza danych i inteligencja obliczeniowa"))
@@ -86,7 +86,7 @@ Rozdziały 1-3.
 
 (ert-deftest plan-polsl-events-test-cancelling ()
   (plan-polsl-events-test--with-file
-   ;; rector's hours from 12:00 cancel classes overlapping them
+   ;; dean's hours from 12:00 cancel classes overlapping them
    (should (plan-polsl-events-cancelling "2026-10-01" "11:00" "14:00"))
    (should-not (plan-polsl-events-cancelling "2026-10-01" "08:30" "12:00"))
    ;; every day of a break, whole day
@@ -131,7 +131,7 @@ Rozdziały 1-3.
     (plan-polsl-events-add '(:type "inne" :title "Juwenalia" :start "2027-05-20"
                                    :end "2027-05-20"))
     (should (equal (mapcar (lambda (e) (plist-get e :title)) (plan-polsl-events-list))
-                   '("Godziny rektorskie: inauguracja" "Kolokwium 1" "Egzamin AM"
+                   '("Godziny dziekańskie: inauguracja" "Kolokwium 1" "Egzamin AM"
                      "Przerwa świąteczna" "Juwenalia")))
     (should (string-match-p
              (regexp-quote "Rozdziały 1-3.
@@ -152,10 +152,10 @@ Rozdziały 1-3.
          (plan-polsl-events-file (expand-file-name "sub/wydarzenia.org" dir)))
     (unwind-protect
         (plan-polsl-events-test--cleanup
-         (plan-polsl-events-add '(:type "wolne" :title "Rektorskie" :start "2026-10-02"
+         (plan-polsl-events-add '(:type "wolne" :title "Dzień sportu" :start "2026-10-02"
                                         :end "2026-10-02"))
          (should (equal (plan-polsl-events-test--file-string)
-                        "#+title: Wydarzenia PolSL\n\n* Rektorskie :wolne:\n<2026-10-02 pią>\n\n")))
+                        "#+title: Wydarzenia PolSL\n\n* Dzień sportu :wolne:\n<2026-10-02 pią>\n\n")))
       (delete-directory dir t))))
 
 (ert-deftest plan-polsl-events-test-update-keeps-notes ()
@@ -198,7 +198,7 @@ Rozdziały 1-3.
    (plan-polsl-events-test--cleanup
     (plan-polsl-events-delete (nth 1 (plan-polsl-events-list)))
     (should (equal (mapcar (lambda (e) (plist-get e :type)) (plan-polsl-events-list))
-                   '("rektorskie" "wolne")))
+                   '("dziekanskie" "wolne")))
     (should-not (string-match-p "Rozdziały" (plan-polsl-events-test--file-string)))
     (should-error (plan-polsl-events-delete '(:title "Brak")) :type 'user-error))))
 
@@ -346,7 +346,7 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
    (with-temp-file plan-polsl-events-file
      (insert "* Kolokwium 1 :kolokwium:\n<2026-11-19 czw 10:00>\n"
              "* Projekt :projekt:\n<2026-11-20 pią>\n"
-             "* Rektorskie :rektorskie:\n<2026-11-19 czw>\n"
+             "* Dziekańskie :dziekanskie:\n<2026-11-19 czw>\n"
              "* Egzamin :egzamin:\n<2027-02-01 pon>\n"))
    (should (equal (plan-polsl-events-upcoming "2026-11-19")
                   "Najbliższe: Kolokwium 1 (19.11, dziś) • Projekt (20.11, jutro)"))

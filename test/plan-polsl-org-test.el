@@ -169,7 +169,7 @@
     (unwind-protect
         (progn
           (with-temp-file plan-polsl-events-file
-            (insert "* Rektorskie :rektorskie:\n<2026-10-22 czw 12:00-18:00>\n"
+            (insert "* Dziekańskie :dziekanskie:\n<2026-10-22 czw 12:00-18:00>\n"
                     "* Wolne :wolne:\n<2026-11-02 pon>\n"))
           (plan-polsl-org-test--on 2026 10 3
                                    (let ((dated (plan-polsl--semester-dated-entries entries)))
@@ -178,7 +178,7 @@
                                                             (seq-take dated 6))
                                                     '("2026-10-05 AM" "2026-10-08 Lab" "2026-10-12 AM" "2026-10-19 AM"
                                                       "2026-10-26 AM" "2026-11-05 Lab")))
-                                     ;; the even-week lab of 22.10 overlaps rector's hours, 02.11 is off
+                                     ;; the even-week lab of 22.10 overlaps dean's hours, 02.11 is off
                                      (should-not (cl-find "2026-10-22" dated :key (lambda (e) (plist-get e :date)) :test #'equal))
                                      (should-not (cl-find "2026-11-02" dated :key (lambda (e) (plist-get e :date)) :test #'equal))
                                      (should (equal (plist-get (car (last dated)) :date) "2027-01-14"))

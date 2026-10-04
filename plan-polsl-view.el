@@ -62,12 +62,12 @@
 
 (defface plan-polsl-event-face
   '((t :inherit font-lock-warning-face :weight bold))
-  "Face for events such as tests and rector's hours."
+  "Face for events such as tests and dean's hours."
   :group 'plan-polsl-faces)
 
 (defface plan-polsl-cancelled-face
   '((t :inherit shadow))
-  "Face for classes cancelled by an event, such as rector's hours."
+  "Face for classes cancelled by an event, such as dean's hours."
   :group 'plan-polsl-faces)
 
 (defface plan-polsl-meta-face

@@ -78,7 +78,7 @@
 * Oddanie projektu :projekt:
 <2026-10-05 pon>
 
-* Godziny rektorskie :rektorskie:
+* Godziny dziekańskie :dziekanskie:
 <2026-10-07 śro 12:00-18:00>
 
 * Zjazd absolwentów :wolne:
@@ -98,13 +98,13 @@
                                           (should (equal (plist-get entry :full-title) "Automatyka i Robotyka"))
                                           (should (equal (plist-get (plist-get entry :event) :type) "kolokwium")))
                                         ;; cancelling events go to the day heading
-                                        (should (search-forward "Środa (07.10.2026)  ⚑ Godziny rektorskie (12:00-18:00)" nil t))
+                                        (should (search-forward "Środa (07.10.2026)  ⚑ Godziny dziekańskie (12:00-18:00)" nil t))
                                         ;; and show a weekend day that has no classes
                                         (should (search-forward "Sobota (10.10.2026)  ⚑ Zjazd absolwentów" nil t))))))
 
 (ert-deftest plan-polsl-view-test-cancelled ()
   (plan-polsl-view-test--with-events
-   "* Godziny rektorskie :rektorskie:
+   "* Godziny dziekańskie :dziekanskie:
 <2026-10-05 pon 09:00-12:00>
 "
    (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
@@ -112,7 +112,7 @@
                                         (should (search-forward "AiR" nil t))
                                         (should (memq 'plan-polsl-cancelled-face
                                                       (ensure-list (get-text-property (point) 'face))))
-                                        (should (search-forward "│ ODWOŁANE: Godziny rektorskie • Sala: 301" nil t))
+                                        (should (search-forward "│ ODWOŁANE: Godziny dziekańskie • Sala: 301" nil t))
                                         (should (plist-get (get-text-property (point) 'plan-polsl-entry) :cancelled))
                                         ;; the stored entries stay untouched
                                         (should-not (plist-get (car plan-polsl-view-entries) :cancelled))))))
