@@ -249,6 +249,50 @@
     (dolist (l (cdr lines))
       (should (string-blank-p (substring l 0 bar))))))
 
+(ert-deftest plan-polsl-view-test-wrap-words ()
+  (should (equal (plan-polsl-view--wrap-words "Budowa komputerów" nil)
+                 '("Budowa komputerów")))
+  (should (equal (plan-polsl-view--wrap-words
+                  "Analiza danych i inteligencja obliczeniowa" 20)
+                 '("Analiza danych i" "inteligencja" "obliczeniowa")))
+  (should (equal (plan-polsl-view--wrap-words "Elektrotechnika teoretyczna" 10)
+                 '("Elektrotechnika" "teoretyczna")))
+  (let ((line (car (plan-polsl-view--wrap-words
+                    (propertize "Analiza danych" 'face 'bold) 8))))
+    (should (eq (get-text-property 0 'face line) 'bold))))
+
+(ert-deftest plan-polsl-view-test-wrapped-subject ()
+  (let* ((entry (list :start-time "14:00" :end-time "16:15" :type "Laboratorium"
+                      :title "Analiza danych i inteligencja obliczeniowa"
+                      :rooms '("416b")
+                      :teachers '("Dr inż. Łukasz Wróbel" "Dr inż. Michał Kozielski")))
+         (lines (split-string (plan-polsl-view--format-entry-line entry 20 80) "\n"))
+         (bar (string-match " │" (car lines))))
+    (should (= (length lines) 3))
+    (should (string-match-p "Analiza danych i *│" (nth 0 lines)))
+    (should (string-match-p "^ +inteligencja *│" (nth 1 lines)))
+    (should (string-match-p "^ +obliczeniowa *│" (nth 2 lines)))
+    (dolist (l lines)
+      (should (<= (string-width l) 80))
+      (should (eq (string-match " │" l) bar))))
+  ;; without meta data the name wraps alone
+  (should (equal (length (split-string
+                          (plan-polsl-view--format-entry-line
+                           (list :start-time "08:00" :end-time "09:30" :type "Wykład"
+                                 :title "Analiza danych i inteligencja obliczeniowa")
+                           20 80)
+                          "\n"))
+                 3)))
+
+(ert-deftest plan-polsl-view-test-subject-width-limit ()
+  (let ((days (make-vector 7 nil)))
+    (aset days 0 (list (list :title (make-string 80 ?x))))
+    (should (= (plan-polsl-view--compute-subject-width days) 80))
+    (should (= (plan-polsl-view--compute-subject-width days 120) 54))
+    (should (= (plan-polsl-view--compute-subject-width days 40) 18))
+    (aset days 0 (list (list :title "Fizyka")))
+    (should (= (plan-polsl-view--compute-subject-width days 120) 18))))
+
 (ert-deftest plan-polsl-view-test-width-limit ()
   (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
     (let ((plan-polsl-view-width 120))
