@@ -201,6 +201,19 @@ there are none."
     (when items
       (concat "Najbliższe: " (mapconcat #'identity items " • ")))))
 
+(defun plan-polsl-events-remove-cancelled (entries &optional events)
+  "Return dated timetable ENTRIES without those cancelled by EVENTS.
+EVENTS default to all events; entries without :date are kept."
+  (let ((events (or events (plan-polsl-events-list))))
+    (cl-remove-if (lambda (e)
+                    (and events
+                         (plist-get e :date) (plist-get e :start-time) (plist-get e :end-time)
+                         (plan-polsl-events-cancelling (plist-get e :date)
+                                                       (plist-get e :start-time)
+                                                       (plist-get e :end-time)
+                                                       events)))
+                  entries)))
+
 (defun plan-polsl-events-hours-on (event date)
   "Return (FROM . TO) hours EVENT occupies on DATE.
 A day of a multi-day event without hours lasts from \"00:00\" to

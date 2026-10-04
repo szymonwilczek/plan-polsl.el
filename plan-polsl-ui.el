@@ -16,6 +16,7 @@
 (require 'plan-polsl-org)
 (require 'plan-polsl-usos)
 (require 'plan-polsl-view)
+(require 'plan-polsl-events)
 
 ;;;###autoload
 (defun plan-polsl-sync (&optional id type)
@@ -61,7 +62,8 @@ TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
   "Export the personal USOS timetable into the Org schedule file.
 Fetches WEEKS weeks (default `plan-polsl-usos-sync-weeks') starting
 with the current one and writes them as dated entries to
-`plan-polsl-target-file'. Returns the number of exported classes."
+`plan-polsl-target-file', leaving out classes cancelled by events in
+`plan-polsl-events-file'. Returns the number of exported classes."
   (interactive)
   (unless (plan-polsl-usos-logged-in-p)
     (user-error "Nie jesteś zalogowany do USOS (M-x plan-polsl-usos-login)"))
@@ -73,6 +75,7 @@ with the current one and writes them as dated entries to
       (setq entries (append entries
                             (plan-polsl-usos-fetch-week
                              (time-add monday (days-to-time (* 7 i)))))))
+    (setq entries (plan-polsl-events-remove-cancelled entries))
     (let ((target-file (or (bound-and-true-p plan-polsl-target-file)
                            (expand-file-name "plan-polsl.org" user-emacs-directory))))
       (plan-polsl-org-write-to-file

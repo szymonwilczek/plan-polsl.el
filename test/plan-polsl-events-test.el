@@ -367,5 +367,17 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
                                                                  (file-name-directory plan-polsl-events-file)))
       (should (= (length org-agenda-files) 2))))))
 
+(ert-deftest plan-polsl-events-test-remove-cancelled ()
+  (plan-polsl-events-test--with-file
+   (let ((entries (list (list :title "A" :date "2026-10-01" :start-time "08:30" :end-time "10:00")
+                        (list :title "B" :date "2026-10-01" :start-time "12:15" :end-time "13:45")
+                        (list :title "C" :date "2026-12-23" :start-time "08:30" :end-time "10:00")
+                        (list :title "D" :day-index 1 :start-time "08:30" :end-time "10:00"))))
+     (should (equal (mapcar (lambda (e) (plist-get e :title))
+                            (plan-polsl-events-remove-cancelled entries))
+                    '("A" "D")))
+     (let ((plan-polsl-events-file nil))
+       (should (= (length (plan-polsl-events-remove-cancelled entries)) 4))))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here
