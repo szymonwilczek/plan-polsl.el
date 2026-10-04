@@ -311,7 +311,7 @@ of its own. When WIDTH is nil, TEXT stays on one line."
 
 (defconst plan-polsl-view--header-keys
   '("[q] Zamknij" "[r] Odśwież" "[s] Synchronizuj" "[t] Dziś" "[w] Tydzień"
-    "[< / >] Tygodnie" "[n] Notatka" "[?] Pomoc")
+    "[< / >] Tygodnie" "[n] Notatka" "[c/e/D] Wydarzenie" "[?] Pomoc")
   "Key hints listed in the timetable header.")
 
 (defun plan-polsl-view--wrap-keys (keys width)
@@ -626,7 +626,8 @@ first one."
             (propertize "Plan PolSL Shortcuts: " 'face 'bold)
             "[< / >] Tygodnie | [t] Dziś | [w] Tydzień (1-16) | "
             "[TAB / S-TAB] Następne/poprzednie zajęcia | "
-            "[Enter] Szczegóły | [n] Notatka | [r] Odśwież | [s] Sync | [q] Zamknij")))
+            "[Enter] Szczegóły | [n] Notatka | "
+            "[c / e / D] Dodaj/edytuj/usuń wydarzenie | [r] Odśwież | [s] Sync | [q] Zamknij")))
 
 (defun plan-polsl-view--buffer-name (id type-val meta)
   "Generate appropriate buffer name for ID, TYPE-VAL, and META."
