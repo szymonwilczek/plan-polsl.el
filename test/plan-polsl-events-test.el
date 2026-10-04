@@ -325,5 +325,18 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
         (should (equal (plist-get ev :course) "Analiza danych i inteligencja obliczeniowa")))
       (should (string-match-p "Rozdziały 1-3" (plan-polsl-events-test--file-string)))))))
 
+(ert-deftest plan-polsl-events-test-delete-command ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (with-temp-buffer
+      (insert (propertize "Czwartek" 'plan-polsl-date "2026-11-19"))
+      (goto-char (point-min))
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) nil)))
+        (should-not (plan-polsl-event-delete)))
+      (should (= (length (plan-polsl-events-list)) 3))
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+        (should (plan-polsl-event-delete)))
+      (should (= (length (plan-polsl-events-list)) 2))))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here

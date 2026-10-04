@@ -513,5 +513,18 @@ See `plan-polsl-events-at-point' for which event is edited."
                (plan-polsl-events-timestamp new))
       new)))
 
+;;;###autoload
+(defun plan-polsl-event-delete ()
+  "Delete the event at point after confirmation.
+See `plan-polsl-events-at-point' for which event is deleted."
+  (interactive)
+  (when (plan-polsl-events--check-file)
+    (let ((event (plan-polsl-events-at-point)))
+      (when (yes-or-no-p (format "Usunąć %s? " (plan-polsl-events--describe event)))
+        (plan-polsl-events-delete event)
+        (plan-polsl-events--refresh-view)
+        (message "Usunięto: %s" (plist-get event :title))
+        t))))
+
 (provide 'plan-polsl-events)
 ;;; plan-polsl-events.el ends here
