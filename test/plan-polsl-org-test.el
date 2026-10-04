@@ -157,5 +157,35 @@
         (plan-polsl-sync)
         (should (eq called 'polsl))))))
 
+(ert-deftest plan-polsl-org-test-semester-dated-entries ()
+  (let* ((dir (make-temp-file "plan-polsl-org-events" t))
+         (plan-polsl-events-file (expand-file-name "wydarzenia.org" dir))
+         (plan-polsl-events--cache nil)
+         (plan-polsl-semester-start "2026-10-01")
+         (entries (list (list :day-index 1 :title "AM" :start-time "08:30" :end-time "10:00"
+                              :cycle 'weekly)
+                        (list :day-index 4 :title "Lab" :start-time "11:00" :end-time "14:00"
+                              :cycle 'even :biweekly t))))
+    (unwind-protect
+        (progn
+          (with-temp-file plan-polsl-events-file
+            (insert "* Rektorskie :rektorskie:\n<2026-10-22 czw 12:00-18:00>\n"
+                    "* Wolne :wolne:\n<2026-11-02 pon>\n"))
+          (plan-polsl-org-test--on 2026 10 3
+                                   (let ((dated (plan-polsl--semester-dated-entries entries)))
+                                     ;; Monday 28.09 is before the start; Monday 26.10 survives the DST change
+                                     (should (equal (mapcar (lambda (e) (concat (plist-get e :date) " " (plist-get e :title)))
+                                                            (seq-take dated 6))
+                                                    '("2026-10-05 AM" "2026-10-08 Lab" "2026-10-12 AM" "2026-10-19 AM"
+                                                      "2026-10-26 AM" "2026-11-05 Lab")))
+                                     ;; the even-week lab of 22.10 overlaps rector's hours, 02.11 is off
+                                     (should-not (cl-find "2026-10-22" dated :key (lambda (e) (plist-get e :date)) :test #'equal))
+                                     (should-not (cl-find "2026-11-02" dated :key (lambda (e) (plist-get e :date)) :test #'equal))
+                                     (should (equal (plist-get (car (last dated)) :date) "2027-01-14"))
+                                     (should (string-match-p
+                                              "^\\*\\* AM - nil :zajecia:uczelnia:\n   <2026-10-05 pon 08:30-10:00>"
+                                              (plan-polsl-org-generate-dated-document dated))))))
+      (delete-directory dir t))))
+
 (provide 'plan-polsl-org-test)
 ;;; plan-polsl-org-test.el ends here

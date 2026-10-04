@@ -18,6 +18,32 @@
 (require 'plan-polsl-view)
 (require 'plan-polsl-events)
 
+(defconst plan-polsl--semester-weeks 16
+  "Weeks of the semester exported as dated classes.")
+
+(defun plan-polsl--semester-dated-entries (entries)
+  "Expand recurring ENTRIES into dated meetings of the current semester.
+Covers `plan-polsl--semester-weeks' weeks from week 1, leaves out days
+before the semester start and classes cancelled by events, and sorts
+the meetings by date and time."
+  (let* ((first (decode-time (plan-polsl-semester-first-monday)))
+         (start (format-time-string "%F" (plan-polsl-semester-start)))
+         (dated nil))
+    (dotimes (w plan-polsl--semester-weeks)
+      ;; noon keeps the dates right across daylight saving changes
+      (let* ((monday (encode-time 0 0 12 (+ (nth 3 first) (* 7 w)) (nth 4 first) (nth 5 first)))
+             (days (plan-polsl-view--filter-week-entries entries monday
+                                                         (if (cl-evenp w) 'odd 'even))))
+        (dotimes (i 7)
+          (let ((date (format-time-string "%F" (time-add monday (days-to-time i)))))
+            (unless (string< date start)
+              (dolist (e (aref days i))
+                (push (append (list :date date) e) dated)))))))
+    (sort (plan-polsl-events-remove-cancelled (nreverse dated))
+          (lambda (a b)
+            (string< (concat (plist-get a :date) (plist-get a :start-time))
+                     (concat (plist-get b :date) (plist-get b :start-time)))))))
+
 ;;;###autoload
 (defun plan-polsl-sync (&optional id type)
   "Fetch and synchronize timetable for ID and TYPE into Org-mode.
@@ -33,7 +59,11 @@ TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
     (plan-polsl--sync-polsl id type)))
 
 (defun plan-polsl--sync-polsl (id type)
-  "Synchronize the plan.polsl.pl timetable for ID and TYPE into Org-mode."
+  "Synchronize the plan.polsl.pl timetable for ID and TYPE into Org-mode.
+Classes are written with weekly repeating timestamps. When
+`plan-polsl-events-file' is set, every meeting of the semester gets
+its own timestamp instead, so classes cancelled by events can be left
+out."
   (let* ((target-id (or id
                         (bound-and-true-p plan-polsl-id)
                         (read-string "Podaj ID planu PolSL (np. 343266256 lub ID nauczyciela): ")))
@@ -49,7 +79,11 @@ TYPE defaults to `plan-polsl-type' (0=group, 10=teacher, 20=room)."
               (user-error "Nie znaleziono żadnych zajęć dla ID %s na plan.polsl.pl" target-id)))
          (target-file (or (bound-and-true-p plan-polsl-target-file)
                           (expand-file-name "plan-polsl.org" user-emacs-directory)))
-         (org-doc (plan-polsl-org-generate-document all-entries (or (plist-get meta :title) target-id))))
+         (title (or (plist-get meta :title) target-id))
+         (org-doc (if plan-polsl-events-file
+                      (plan-polsl-org-generate-dated-document
+                       (plan-polsl--semester-dated-entries all-entries) title)
+                    (plan-polsl-org-generate-document all-entries title))))
     
     (plan-polsl-org-write-to-file org-doc target-file)
     (message "Zsynchronizowano plan! Zapisano %d zajęć w %s"
