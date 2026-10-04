@@ -469,7 +469,7 @@ lines, aligned under the first one."
 
         ;; footer
         (insert "\n" (propertize (make-string 55 ?─) 'face 'font-lock-comment-face) "\n")
-        (insert (propertize "  [q] Zamknij okno\n  [Enter] Otwórz plan wybranego elementu\n"
+        (insert (propertize "  [q] Zamknij okno\n  [Enter] Otwórz plan wybranego elementu\n  [n] Notatka do przedmiotu\n"
                             'face 'font-lock-comment-face))
         (goto-char (or first-target-pos (point-min)))))
 
@@ -525,7 +525,7 @@ lines, aligned under the first one."
             (propertize "Plan PolSL Shortcuts: " 'face 'bold)
             "[< / >] Tygodnie | [t] Dziś | [w] Tydzień (1-16) | "
             "[TAB / S-TAB] Następne/poprzednie zajęcia | "
-            "[Enter] Szczegóły | [r] Odśwież | [s] Sync | [q] Zamknij")))
+            "[Enter] Szczegóły | [n] Notatka | [r] Odśwież | [s] Sync | [q] Zamknij")))
 
 (defun plan-polsl-view--buffer-name (id type-val meta)
   "Generate appropriate buffer name for ID, TYPE-VAL, and META."
@@ -592,7 +592,7 @@ glyph."
                             (format "Plan Zajęć: %s (USOS)" title)
                           (format "Plan Zajęć: %s (ID: %s)" title id)))
          (header-line-3 (format "Tydzień: %s" week-label))
-         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [w] Tydzień   [< / >] Tygodnie   [?] Pomoc"))
+         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [w] Tydzień   [< / >] Tygodnie   [n] Notatka   [?] Pomoc"))
 
     (when path (push header-line-1 all-lines))
     (push header-line-2 all-lines)
