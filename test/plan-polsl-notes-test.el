@@ -17,5 +17,24 @@
   (should (equal (plan-polsl-notes--abbreviation "PSy") "PSy"))
   (should (equal (plan-polsl-notes--abbreviation "  ") "")))
 
+(defmacro plan-polsl-notes-test--with-dirs (&rest body)
+  "Run BODY with temporary notes and data directories bound to `notes'."
+  (declare (indent 0))
+  `(let* ((notes (make-temp-file "plan-polsl-notes" t))
+          (plan-polsl-notes-directory notes)
+          (plan-polsl-notes-file (expand-file-name "data/notes.eld" notes)))
+     (unwind-protect (progn ,@body)
+       (delete-directory notes t))))
+
+(ert-deftest plan-polsl-notes-test-saved-name ()
+  (plan-polsl-notes-test--with-dirs
+   (should-not (plan-polsl-notes--saved-name "Fizyka"))
+   (plan-polsl-notes--save-name "Fizyka" "fiz")
+   (plan-polsl-notes--save-name "Analiza matematyczna" "AM")
+   (plan-polsl-notes--save-name "Fizyka" "FIZ")
+   (should (equal (plan-polsl-notes--saved-name "Fizyka") "FIZ"))
+   (should (equal (plan-polsl-notes--saved-name "Analiza matematyczna") "AM"))
+   (should (= (file-modes plan-polsl-notes-file) #o600))))
+
 (provide 'plan-polsl-notes-test)
 ;;; plan-polsl-notes-test.el ends here
