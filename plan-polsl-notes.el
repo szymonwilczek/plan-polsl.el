@@ -84,5 +84,30 @@ with the default, and remembered."
           (plan-polsl-notes--save-name title name)
           dir)))))
 
+(defun plan-polsl-notes--entry-at-point ()
+  "Return the timetable entry at point, or nil."
+  (get-text-property (point) 'plan-polsl-entry))
+
+;;;###autoload
+(defun plan-polsl-note (entry)
+  "Create or open a note for the course of timetable ENTRY.
+Interactively, ENTRY is the class at point. The note goes to the
+course directory under `plan-polsl-notes-directory', which is created
+first when missing, see `plan-polsl-notes--course-directory'. The file
+name is read with its extension, such as \"wyklad-1.org\" or
+\"lab.md\", and the note opens in another window."
+  (interactive
+   (list (or (plan-polsl-notes--entry-at-point)
+             (user-error "Kursor nie znajduje się na linii zajęć"))))
+  (let* ((title (or (plist-get entry :full-title) (plist-get entry :title)))
+         (dir (plan-polsl-notes--course-directory title))
+         (file (expand-file-name (read-file-name "Notatka (nazwa.rozszerzenie): " dir))))
+    (when (or (directory-name-p file) (file-directory-p file))
+      (user-error "Nie podano nazwy pliku"))
+    (make-directory (file-name-directory file) t)
+    (unless (file-exists-p file)
+      (write-region "" nil file nil 'silent))
+    (find-file-other-window file)))
+
 (provide 'plan-polsl-notes)
 ;;; plan-polsl-notes.el ends here
