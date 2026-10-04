@@ -55,19 +55,22 @@ TITLE, such as an abbreviation from plan.polsl.pl, is kept as is."
                                         (assoc-delete-all title dirs))))))
 
 (defun plan-polsl-notes--root ()
-  "Return `plan-polsl-notes-directory' as a directory name.
-Signal `user-error' when it is not set."
-  (unless plan-polsl-notes-directory
-    (user-error "Ustaw katalog notatek: plan-polsl-notes-directory"))
-  (file-name-as-directory (expand-file-name plan-polsl-notes-directory)))
+  "Return `plan-polsl-notes-directory' as a directory name, or nil if unset."
+  (when plan-polsl-notes-directory
+    (file-name-as-directory (expand-file-name plan-polsl-notes-directory))))
 
-(defun plan-polsl-notes--course-directory (title)
-  "Return the note directory of course TITLE, creating it when needed.
+(defun plan-polsl-notes--explain-unset ()
+  "Tell the user how to set `plan-polsl-notes-directory'."
+  (message (concat "Notatki: najpierw ustaw katalog w konfiguracji, np. "
+                   "(setq plan-polsl-notes-directory \"~/notatki\") "
+                   "albo w :custom w use-package plan-polsl")))
+
+(defun plan-polsl-notes--course-directory (root title)
+  "Return the note directory of course TITLE under ROOT.
 An existing directory with the saved or the default name is used
 right away. Otherwise the name is read in the minibuffer, prefilled
-with the default, and remembered."
-  (let* ((root (plan-polsl-notes--root))
-         (default (plan-polsl-notes--abbreviation title))
+with the default, and the directory is created and remembered."
+  (let* ((default (plan-polsl-notes--abbreviation title))
          (existing (seq-find (lambda (name)
                                (and name (not (string-empty-p name))
                                     (file-directory-p (expand-file-name name root))))
@@ -96,16 +99,24 @@ In the class detail buffer, that is the class it describes."
 (defun plan-polsl-note (entry)
   "Create or open a note for the course of timetable ENTRY.
 Interactively, ENTRY is the class at point or the one shown in the
-class detail buffer. The note goes to the
-course directory under `plan-polsl-notes-directory', which is created
-first when missing, see `plan-polsl-notes--course-directory'. The file
-name is read with its extension, such as \"wyklad-1.org\" or
-\"lab.md\", and the note opens in another window."
+class detail buffer. The note goes to the course directory under
+`plan-polsl-notes-directory', which is created first when missing,
+see `plan-polsl-notes--course-directory'. The file name is read with
+its extension, such as \"wyklad-1.org\" or \"lab.md\", and the note
+opens in another window. While `plan-polsl-notes-directory' is unset,
+only explain how to set it."
   (interactive
    (list (or (plan-polsl-notes--entry-at-point)
              (user-error "Kursor nie znajduje się na linii zajęć"))))
+  (if-let* ((root (plan-polsl-notes--root)))
+      (plan-polsl-notes--open root entry)
+    (plan-polsl-notes--explain-unset)
+    nil))
+
+(defun plan-polsl-notes--open (root entry)
+  "Create or open a note for the course of ENTRY under ROOT."
   (let* ((title (or (plist-get entry :full-title) (plist-get entry :title)))
-         (dir (plan-polsl-notes--course-directory title))
+         (dir (plan-polsl-notes--course-directory root title))
          (file (expand-file-name (read-file-name "Notatka (nazwa.rozszerzenie): " dir))))
     (when (or (directory-name-p file) (file-directory-p file))
       (user-error "Nie podano nazwy pliku"))
