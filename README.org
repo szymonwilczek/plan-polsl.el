@@ -20,6 +20,7 @@ Emacs package integrating the timetable system of the *Silesian University of Te
 - *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
 - *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
 - *Course Notes* (~n~ in the timetable): Create or open a note for the class at point, in a directory of its own per course. See [[#course-notes][Course Notes]].
+- *Events* (~c~ / ~e~ / ~D~ in the timetable): Rector's and dean's hours, days off, tests and exams kept in one Org file you choose, e.g. in your dotfiles, so every device sees them. See [[#events][Events]].
 - *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
 - *USOS Integration* (~M-x plan-polsl-usos-setup~, ~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
 
@@ -152,6 +153,72 @@ notes go to the same directory without asking. A course from
 plan.polsl.pl without a full name in the legend keeps its abbreviation
 (e.g. ~PSy~) as the directory name.
 
+** Events
+:PROPERTIES:
+:CUSTOM_ID: events
+:END:
+
+Rector's and dean's hours, days off, tests, exams and project
+deadlines are not part of any timetable. Keep them in one Org file,
+ideally in a repository you synchronize (such as your dotfiles), so
+every device shows the same events:
+
+#+begin_src elisp
+  (use-package plan-polsl
+    :custom
+    (plan-polsl-events-file (expand-file-name "polsl-wydarzenia.org" user-emacs-directory)))
+#+end_src
+
+*** Adding and editing
+- ~c~ on any day of the timetable creates an event. The minibuffer asks,
+  step by step, for the type, the date (Org calendar, starting at that
+  day), the last day (days off and rector's/dean's hours only), the
+  hours (blank for the whole day), the course (with completion), the
+  room and the name. On a class, its hours, course and room are
+  suggested.
+- ~e~ edits the event on the current line, or an event of the day at
+  point (asking which one when there are several), with every step
+  prefilled.
+- ~D~ deletes it after confirmation.
+
+The file stays chronological and readable; you can also edit it by
+hand. Text you write under an event is kept when it is edited with
+~e~:
+
+#+begin_src org
+  ,* Godziny rektorskie: inauguracja :rektorskie:
+  <2026-10-01 czw 12:00-18:00>
+
+  ,* Kolokwium 1 :kolokwium:
+  :PROPERTIES:
+  :PRZEDMIOT: Analiza danych i inteligencja obliczeniowa
+  :SALA:     416b
+  :END:
+  <2026-11-19 czw 14:00-16:15>
+  Rozdziały 1-3, kalkulator.
+
+  ,* Przerwa świąteczna :wolne:
+  <2026-12-22 wto>--<2027-01-06 śro>
+#+end_src
+
+The type is the tag: ~rektorskie~, ~dziekanskie~, ~wolne~, ~kolokwium~,
+~egzamin~, ~projekt~, ~odrabianie~ or ~inne~. Other headings are ignored,
+and the file is read again whenever it changes, e.g. after ~git pull~.
+
+*** How events are shown
+- *Rector's/dean's hours and days off* are shown next to the day
+  heading, and the classes they overlap are struck through and marked
+  /ODWOŁANE/.
+- *Other events* are listed among the classes of their day with their
+  course and room; ~n~ on a test opens the notes of its course.
+- *Upcoming events* of the next ~plan-polsl-events-upcoming-days~ days
+  (14 by default, ~0~ hides them) are listed in the header.
+- *Org-Agenda:* the events file is added to ~org-agenda-files~ (with
+  ~plan-polsl-auto-add-to-agenda~). ~plan-polsl-sync~ leaves cancelled
+  classes out; for plan.polsl.pl this means exporting every meeting of
+  the semester with its own date instead of weekly repeating
+  timestamps, which cannot skip a single week.
+
 ** USOS Integration
 :PROPERTIES:
 :CUSTOM_ID: usos-integration
@@ -224,6 +291,9 @@ A key saved with ~plan-polsl-usos-setup~ takes precedence over this.
 | ~M-x plan-polsl-open-plan~          | Open the generated ~plan-polsl.org~ file.                                 |
 | ~M-x plan-polsl-set-semester-start~ | Save the semester start date announced by the dean (once per semester). |
 | ~M-x plan-polsl-note~               | Create or open a note for the class at point (~n~ in the timetable).      |
+| ~M-x plan-polsl-event-create~       | Create an event on the day at point (~c~ in the timetable).               |
+| ~M-x plan-polsl-event-edit~         | Edit the event at point (~e~ in the timetable).                           |
+| ~M-x plan-polsl-event-delete~       | Delete the event at point (~D~ in the timetable).                         |
 | ~M-x plan-polsl-usos-setup~         | Enter and privately store your USOS API Consumer Key and Secret.        |
 | ~M-x plan-polsl-usos-login~         | Log in to USOS (opens the browser, asks for the PIN).                   |
 | ~M-x plan-polsl-usos-logout~        | Revoke and delete the stored USOS token (~C-u~: also forget the key).     |
