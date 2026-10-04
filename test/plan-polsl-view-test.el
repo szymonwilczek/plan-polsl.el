@@ -54,6 +54,52 @@
                                      (forward-line 2)
                                      (should (equal (plan-polsl-view-date-at-point) "2026-10-06"))))
 
+(defmacro plan-polsl-view-test--with-events (org &rest body)
+  "Run BODY with `plan-polsl-events-file' holding ORG text."
+  (declare (indent 1))
+  `(let* ((dir (make-temp-file "plan-polsl-view-events" t))
+          (plan-polsl-events-file (expand-file-name "wydarzenia.org" dir))
+          (plan-polsl-events--cache nil))
+     (unwind-protect
+         (progn
+           (with-temp-file plan-polsl-events-file (insert ,org))
+           ,@body)
+       (delete-directory dir t))))
+
+(ert-deftest plan-polsl-view-test-events ()
+  (plan-polsl-view-test--with-events
+   "* Kolokwium 1 :kolokwium:
+:PROPERTIES:
+:PRZEDMIOT: Automatyka i Robotyka
+:SALA: 416b
+:END:
+<2026-10-05 pon 07:00-08:00>
+
+* Oddanie projektu :projekt:
+<2026-10-05 pon>
+
+* Godziny rektorskie :rektorskie:
+<2026-10-07 śro 12:00-18:00>
+
+* Zjazd absolwentów :wolne:
+<2026-10-10 sob>
+"
+   (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
+     (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                        ;; all-day first, then by start time, classes included
+                                        (should (re-search-forward "cały dzień +\\[Projekt +\\] +Oddanie projektu" nil t))
+                                        (should (re-search-forward "07:00 - 08:00 +\\[Kolokwium +\\] +Kolokwium 1 +│ Przedmiot: Automatyka i Robotyka • Sala: 416b" nil t))
+                                        (should (search-forward "08:30 - 10:00" nil t))
+                                        (goto-char (point-min))
+                                        (search-forward "Kolokwium 1")
+                                        (let ((entry (get-text-property (point) 'plan-polsl-entry)))
+                                          (should (equal (plist-get entry :full-title) "Automatyka i Robotyka"))
+                                          (should (equal (plist-get (plist-get entry :event) :type) "kolokwium")))
+                                        ;; cancelling events go to the day heading
+                                        (should (search-forward "Środa (07.10.2026)  ⚑ Godziny rektorskie (12:00-18:00)" nil t))
+                                        ;; and show a weekend day that has no classes
+                                        (should (search-forward "Sobota (10.10.2026)  ⚑ Zjazd absolwentów" nil t))))))
+
 (ert-deftest plan-polsl-view-test-week-navigation ()
   (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
                                      (plan-polsl-next-week)

@@ -14,6 +14,7 @@
 (require 'plan-polsl-parser)
 (require 'plan-polsl-semester)
 (require 'plan-polsl-usos)
+(require 'plan-polsl-events)
 
 ;; external references for clean byte-compilation
 (declare-function evil-define-key "evil-core")
@@ -54,6 +55,11 @@
 (defface plan-polsl-seminar-face
   '((t :inherit font-lock-warning-face :weight bold))
   "Face for seminar badges."
+  :group 'plan-polsl-faces)
+
+(defface plan-polsl-event-face
+  '((t :inherit font-lock-warning-face :weight bold))
+  "Face for events such as tests and rector's hours."
   :group 'plan-polsl-faces)
 
 (defface plan-polsl-meta-face
@@ -249,10 +255,11 @@ timetable lowers the limit; when nil, only the window width counts."
      ((eq cycle 'even) (eq week-cycle 'even))
      (t t))))
 
-(defun plan-polsl-view--type-badge (type-str)
-  "Format TYPE-STR with appropriate badge face."
+(defun plan-polsl-view--type-badge (type-str &optional face)
+  "Format TYPE-STR with FACE or the badge face of its class type."
   (let* ((ltype (downcase (or type-str "")))
          (face (cond
+                (face face)
                 ((string-match-p "wyk" ltype) 'plan-polsl-lecture-face)
                 ((string-match-p "lab" ltype) 'plan-polsl-lab-face)
                 ((string-match-p "sem" ltype) 'plan-polsl-seminar-face)
@@ -352,9 +359,14 @@ first one."
          (groups (plist-get entry :groups))
          (rooms (plist-get entry :rooms))
          (teachers (plist-get entry :teachers))
+         (course (plist-get entry :course))
          (biweekly (plist-get entry :biweekly))
-         (time-str (propertize (format "%s - %s" start end) 'face 'plan-polsl-time-face))
-         (badge (plan-polsl-view--type-badge type))
+         (time-str (propertize (format "%-13s" (cond ((and start end) (format "%s - %s" start end))
+                                                     (start start)
+                                                     (t "cały dzień")))
+                               'face 'plan-polsl-time-face))
+         (badge (plan-polsl-view--type-badge
+                 type (and (plist-get entry :event) 'plan-polsl-event-face)))
          (title-str (propertize (format "%s%s"
                                         (if (and biweekly (not (string-prefix-p "*" title))) "* " "")
                                         title)
@@ -369,6 +381,8 @@ first one."
          (lead-indent (make-string (string-width lead) ?\s))
          (prefix-width (+ (string-width lead) subject-col-width))
          (meta-items nil))
+    (when course
+      (push (format "Przedmiot: %s" course) meta-items))
     (when groups
       (push (format "Grupy: %s" (mapconcat #'identity groups ", ")) meta-items))
     (when rooms
@@ -614,6 +628,52 @@ first one."
           (aset day-groups idx (append (aref day-groups idx) (list e))))))
     day-groups))
 
+(defun plan-polsl-view--event-entry (event date day-index)
+  "Return a timetable entry showing EVENT on DATE, weekday DAY-INDEX."
+  (let ((hours (plan-polsl-events-hours-on event date)))
+    (list :event event
+          :day-index day-index
+          :day-name (aref plan-polsl-usos--day-names (1- day-index))
+          :date date
+          :start-time (unless (equal hours '("00:00" . "24:00")) (car hours))
+          :end-time (unless (equal (cdr hours) "24:00") (cdr hours))
+          :title (plist-get event :title)
+          :full-title (or (plist-get event :course) (plist-get event :title))
+          :course (plist-get event :course)
+          :type (plan-polsl-events-type-label (plist-get event :type))
+          :rooms (when-let* ((room (plist-get event :room))) (list room)))))
+
+(defun plan-polsl-view--add-events (day-groups monday-time events)
+  "Add EVENTS not cancelling classes to DAY-GROUPS of the week at MONDAY-TIME.
+Each day is sorted by start time, with all-day events first."
+  (dotimes (i 7)
+    (let* ((date (format-time-string "%F" (time-add monday-time (days-to-time i))))
+           (added (mapcar (lambda (ev) (plan-polsl-view--event-entry ev date (1+ i)))
+                          (cl-remove-if #'plan-polsl-events-cancelling-p
+                                        (plan-polsl-events-on-date date events)))))
+      (when added
+        (aset day-groups i
+              (sort (append (aref day-groups i) added)
+                    (lambda (a b)
+                      (string< (or (plist-get a :start-time) "")
+                               (or (plist-get b :start-time) ""))))))))
+  day-groups)
+
+(defun plan-polsl-view--day-banner (date events)
+  "Return the banner of cancelling EVENTS on DATE for its day heading, or nil."
+  (when-let* ((cancelling (cl-remove-if-not #'plan-polsl-events-cancelling-p
+                                            (plan-polsl-events-on-date date events))))
+    (propertize
+     (concat "  ⚑ "
+             (mapconcat (lambda (ev)
+                          (let ((hours (plan-polsl-events-hours-on ev date)))
+                            (if (equal hours '("00:00" . "24:00"))
+                                (plist-get ev :title)
+                              (format "%s (%s-%s)" (plist-get ev :title)
+                                      (car hours) (cdr hours)))))
+                        cancelling " • "))
+     'face 'plan-polsl-event-face)))
+
 (defun plan-polsl-view--compute-subject-width (day-groups &optional width)
   "Compute maximum subject title column width across all DAY-GROUPS.
 With WIDTH, the column leaves at least
@@ -655,7 +715,10 @@ minus one column for the continuation glyph, but at most
          (week-info (plan-polsl-view--week-info monday-time))
          (week-label (plist-get week-info :label))
          (week-cycle (plist-get week-info :cycle))
-         (day-groups (plan-polsl-view--filter-week-entries entries monday-time week-cycle))
+         (events (plan-polsl-events-list))
+         (day-groups (plan-polsl-view--add-events
+                      (plan-polsl-view--filter-week-entries entries monday-time week-cycle)
+                      monday-time events))
          (width (plan-polsl-view--width buf))
          (max-subj-w (plan-polsl-view--compute-subject-width day-groups width))
          (rendered-days (make-vector 7 nil))
@@ -715,10 +778,14 @@ minus one column for the continuation glyph, but at most
                    (day-date-str (format-time-string "%d.%m.%Y" day-time))
                    (day-names ["Poniedziałek" "Wtorek" "Środa" "Czwartek" "Piątek"
                                "Sobota" "Niedziela"])
-                   (day-title (format "%s (%s)" (aref day-names i) day-date-str)))
-              (when (or (< i 5) day-lines)
+                   (day-title (format "%s (%s)" (aref day-names i) day-date-str))
+                   (banner (plan-polsl-view--day-banner (format-time-string "%F" day-time)
+                                                        events)))
+              (when (or (< i 5) day-lines banner)
                 (setq day-beg (point))
-		(insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
+		(insert (propertize day-title 'face 'plan-polsl-day-face)
+                        (or banner "")
+                        "\n")
 		(insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
 		(if day-lines
                     (cl-mapc (lambda (l e)
