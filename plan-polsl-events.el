@@ -39,10 +39,11 @@ share the events between devices."
     ("wolne" "Dzień wolny" t)
     ("kolokwium" "Kolokwium" nil)
     ("egzamin" "Egzamin" nil)
-    ("projekt" "Termin projektu" nil)
-    ("odrabianie" "Odrabianie zajęć" nil)
+    ("projekt" "Projekt" nil)
+    ("odrabianie" "Odrabianie" nil)
     ("inne" "Wydarzenie" nil))
-  "Event types as (TAG LABEL CANCELS-CLASSES).")
+  "Event types as (TAG LABEL CANCELS-CLASSES).
+Labels of types shown as timetable lines fit the 12 column badge.")
 
 (defun plan-polsl-events-type-label (type)
   "Return the display label of event TYPE tag."
