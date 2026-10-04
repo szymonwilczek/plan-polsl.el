@@ -216,12 +216,24 @@
                  '("Sala: 827 • Prow: A B, C D")))
   (should (equal (plan-polsl-view--wrap-meta '("Sala: 827" "Prow: Dr A, Dr B, Dr C") 20)
                  '("Sala: 827" "Prow: Dr A, Dr B," "Dr C")))
-  ;; lists break after commas, never inside a name
+  ;; lists break after commas, not inside a name that fits on a line
   (should (equal (plan-polsl-view--wrap-meta
-                  '("Grupy: gr. 10" "Prow: Dr hab. inż. Adam Ziębiński, Dr inż. Dariusz Caban") 30)
+                  '("Grupy: gr. 10" "Prow: Dr hab. inż. Adam Ziębiński, Dr inż. Dariusz Caban") 36)
                  '("Grupy: gr. 10"
                    "Prow: Dr hab. inż. Adam Ziębiński,"
-                   "Dr inż. Dariusz Caban"))))
+                   "Dr inż. Dariusz Caban")))
+  ;; a name longer than the width breaks between words
+  (should (equal (plan-polsl-view--wrap-meta
+                  '("Grupy: gr. 10" "Prow: Dr hab. inż. Adam Ziębiński, Dr inż. Dariusz Caban") 30)
+                 '("Grupy: gr. 10 • Prow: Dr hab."
+                   "inż. Adam Ziębiński,"
+                   "Dr inż. Dariusz Caban")))
+  ;; a part too long for any line breaks between words, never inside one
+  (should (equal (plan-polsl-view--wrap-meta
+                  '("Sala: 827" "Grupy: Informatyka sem. 5 grupa dziekańska 4") 20)
+                 '("Sala: 827 • Grupy:"
+                   "Informatyka sem. 5"
+                   "grupa dziekańska 4"))))
 
 (ert-deftest plan-polsl-view-test-wrapped-entry-alignment ()
   (let* ((entry (list :start-time "11:00" :end-time "14:00" :title "Budowa komputerów"

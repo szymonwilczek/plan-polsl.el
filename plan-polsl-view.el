@@ -268,24 +268,31 @@ timetable lowers the limit; when nil, only the window width counts."
 (defun plan-polsl-view--wrap-meta (items width)
   "Lay out meta ITEMS as lines at most WIDTH columns wide.
 Items are joined with \" • \" and broken between items or after the
-commas of a list, such as lecturers. A single part wider than WIDTH
-keeps its own line. When WIDTH is nil, everything stays on one line."
+commas of a list, such as lecturers. A part wider than WIDTH on its
+own is broken between words; only a single word wider than WIDTH
+exceeds it. When WIDTH is nil, everything stays on one line."
   (if (null width)
       (list (mapconcat #'identity items " • "))
     (let ((lines nil) (line nil))
-      (dolist (item items)
-        (let* ((parts (split-string item ", "))
-               (n (length parts)))
-          (cl-loop for part in parts
-                   for k from 1
-                   for text = (if (< k n) (concat part ",") part)
-                   for sep = (if (= k 1) " • " " ")
-                   do (cond
-                       ((null line) (setq line text))
-                       ((<= (string-width (concat line sep text)) width)
-                        (setq line (concat line sep text)))
-                       (t (push line lines)
-                          (setq line text))))))
+      (cl-flet ((add (text sep)
+                  (cond
+                   ((null line) (setq line text))
+                   ((<= (string-width (concat line sep text)) width)
+                    (setq line (concat line sep text)))
+                   (t (push line lines)
+                      (setq line text)))))
+        (dolist (item items)
+          (let* ((parts (split-string item ", "))
+                 (n (length parts)))
+            (cl-loop for part in parts
+                     for k from 1
+                     for text = (if (< k n) (concat part ",") part)
+                     for sep = (if (= k 1) " • " " ")
+                     do (if (<= (string-width text) width)
+                            (add text sep)
+                          (cl-loop for word in (split-string text " " t)
+                                   for first = t then nil
+                                   do (add word (if first sep " "))))))))
       (when line (push line lines))
       (nreverse lines))))
 
