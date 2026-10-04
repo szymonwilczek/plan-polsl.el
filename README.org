@@ -87,6 +87,17 @@ Configure the package parameters directly in your Emacs configuration:
     (plan-polsl-auto-add-to-agenda t))
 #+end_src
 
+** Timetable Width
+
+The timetable is at most 120 columns wide, or narrower when its window
+is. Course names, group, room and lecturer lists and the header are
+wrapped between words to fit. Change the limit with
+~plan-polsl-view-width~, or set it to ~nil~ to use the whole window:
+
+#+begin_src elisp
+  (setq plan-polsl-view-width 100)
+#+end_src
+
 ** Semester Start Date
 
 Week numbers, odd/even (nieparzysty/parzysty) weeks and the first
