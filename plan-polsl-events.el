@@ -25,6 +25,7 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'time-date)
+(require 'plan-polsl-org)
 
 (declare-function org-read-date "org")
 (declare-function plan-polsl-view--show-week "plan-polsl-view")
@@ -348,7 +349,8 @@ PROPS and BODY are passed to `plan-polsl-events--format'."
 
 (defmacro plan-polsl-events--with-file (&rest body)
   "Run BODY in a buffer visiting the events file, then save it.
-A missing file is created with a title line."
+A missing file is created with a title line. The file is added to
+`org-agenda-files' when `plan-polsl-auto-add-to-agenda' is non-nil."
   (declare (indent 0))
   `(let ((file (plan-polsl-events--file)))
      (make-directory (file-name-directory file) t)
@@ -356,7 +358,9 @@ A missing file is created with a title line."
        (when (= (buffer-size) 0)
          (insert "#+title: Wydarzenia PolSL\n\n"))
        (prog1 (progn ,@body)
-         (save-buffer)))))
+         (save-buffer)
+         (when (bound-and-true-p plan-polsl-auto-add-to-agenda)
+           (plan-polsl-org-register-in-agenda file))))))
 
 (defun plan-polsl-events-add (event)
   "Add EVENT to `plan-polsl-events-file'."

@@ -9,6 +9,9 @@
 (require 'ert)
 (require 'plan-polsl-events)
 
+(defvar org-agenda-files)
+(defvar plan-polsl-auto-add-to-agenda)
+
 (defconst plan-polsl-events-test--org
   "#+title: Wydarzenia PolSL
 
@@ -352,6 +355,17 @@ initial inputs are recorded in `plan-polsl-events-test--asked'."
    (should-not (plan-polsl-events-upcoming "2026-11-21"))
    (let ((plan-polsl-events-upcoming-days 0))
      (should-not (plan-polsl-events-upcoming "2026-11-19")))))
+
+(ert-deftest plan-polsl-events-test-agenda ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (let ((org-agenda-files nil)
+          (plan-polsl-auto-add-to-agenda t))
+      (plan-polsl-events-add '(:type "inne" :title "X" :start "2026-10-02" :end "2026-10-02"))
+      (should (equal org-agenda-files (list plan-polsl-events-file)))
+      (plan-polsl-org-write-to-file "* Plan\n" (expand-file-name "plan.org"
+                                                                 (file-name-directory plan-polsl-events-file)))
+      (should (= (length org-agenda-files) 2))))))
 
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here

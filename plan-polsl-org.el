@@ -156,7 +156,10 @@ ENTRIES must be sorted chronologically; each date gets its own heading."
   (with-temp-file target-file
     (insert content))
   (when (bound-and-true-p plan-polsl-auto-add-to-agenda)
-    (plan-polsl-org-register-in-agenda target-file)))
+    (plan-polsl-org-register-in-agenda target-file)
+    (when-let* ((events-file (bound-and-true-p plan-polsl-events-file)))
+      (when (file-exists-p events-file)
+        (plan-polsl-org-register-in-agenda events-file)))))
 
 (provide 'plan-polsl-org)
 ;;; plan-polsl-org.el ends here
