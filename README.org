@@ -19,6 +19,7 @@ Emacs package integrating the timetable system of the *Silesian University of Te
 - *Default Current Week View:* Aligns to the active academic week with dates, day headings and more.
 - *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
 - *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
+- *Course Notes* (~n~ in the timetable): Create or open a note for the class at point, in a directory of its own per course. See [[#course-notes][Course Notes]].
 - *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
 - *USOS Integration* (~M-x plan-polsl-usos-setup~, ~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
 
@@ -108,6 +109,38 @@ configured date is ignored once its semester is over (after 26 weeks),
 so a forgotten date does not shift the parity of the next semester;
 just enter the new one when it is announced.
 
+** Course Notes
+:PROPERTIES:
+:CUSTOM_ID: course-notes
+:END:
+
+Point ~plan-polsl-notes-directory~ at the directory for your notes:
+
+#+begin_src elisp
+  (use-package plan-polsl
+    :custom
+    (plan-polsl-notes-directory "~/Dokumenty/studia/notatki"))
+#+end_src
+
+Then press ~n~ on a class in the timetable, or in the details opened
+with ~RET~:
+
+1. Every course gets its own directory, named after the first letters
+   of its full name: /Analiza danych i inteligencja obliczeniowa/
+   becomes ~ADIIO~. The first time, the name is suggested in the
+   minibuffer, so you can accept it with ~RET~ or change it first. When
+   the directory already exists, this step is skipped.
+2. The minibuffer opens in that directory; type the file name with its
+   extension, e.g. ~wyklad-1.org~ or ~lab.md~.
+3. The file is created (an existing one is left as is) and opened in
+   another window.
+
+A directory name you changed is remembered per course in
+~plan-polsl-notes-file~ (~~/.local/share/plan-polsl/notes.eld~), so later
+notes go to the same directory without asking. A course from
+plan.polsl.pl without a full name in the legend keeps its abbreviation
+(e.g. ~PSy~) as the directory name.
+
 ** USOS Integration
 :PROPERTIES:
 :CUSTOM_ID: usos-integration
@@ -179,6 +212,7 @@ A key saved with ~plan-polsl-usos-setup~ takes precedence over this.
 | ~M-x plan-polsl-sync~               | Download and update your schedule in the Org-mode file for Org-Agenda.  |
 | ~M-x plan-polsl-open-plan~          | Open the generated ~plan-polsl.org~ file.                                 |
 | ~M-x plan-polsl-set-semester-start~ | Save the semester start date announced by the dean (once per semester). |
+| ~M-x plan-polsl-note~               | Create or open a note for the class at point (~n~ in the timetable).      |
 | ~M-x plan-polsl-usos-setup~         | Enter and privately store your USOS API Consumer Key and Secret.        |
 | ~M-x plan-polsl-usos-login~         | Log in to USOS (opens the browser, asks for the PIN).                   |
 | ~M-x plan-polsl-usos-logout~        | Revoke and delete the stored USOS token (~C-u~: also forget the key).     |
