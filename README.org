@@ -11,49 +11,40 @@
 #+HTML:   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square" alt="License GPLv3"/></a>
 #+HTML: </div>
 
-Emacs package integrating the timetable system of the *Silesian University of Technology* ([[https://plan.polsl.pl/][plan.polsl.pl]]) for student groups, faculty teachers, and rooms with *Org-mode*, *Org-Agenda*, and a dedicated in-memory timetable buffer. Optionally, it shows your personal timetable straight from the university's *USOS* ([[https://usosapi.polsl.pl/][usosapi.polsl.pl]]).
+Timetables of the *Silesian University of Technology* ([[https://plan.polsl.pl/][plan.polsl.pl]]) for groups, teachers and rooms in Emacs: a timetable buffer, *Org-mode* and *Org-Agenda*. Optionally, your personal timetable from *USOS* ([[https://usosapi.polsl.pl/][usosapi.polsl.pl]]).
 
 * What's inside:
 
-- *Timetable Buffer* (~M-x plan-polsl~): Asynchronous schedule viewer.
-- *Default Current Week View:* Aligns to the active academic week with dates, day headings and more.
-- *Course Inspector:* Pressing ~RET~ opens a vertical right-split panel with full course info.
-- *Interactive Search* (~M-x plan-polsl-search~): Fast fuzzy completion across all university faculty members and tree navigation for rooms and groups.
-- *Course Notes* (~n~ in the timetable): Create or open a note for the class at point, in a directory of its own per course. See [[#course-notes][Course Notes]].
-- *Events* (~c~ / ~e~ / ~D~ in the timetable): Dean's hours, days off, tests and exams kept in one Org file you choose, e.g. in your dotfiles, so every device sees them. See [[#events][Events]].
-- *Org-Agenda Integration* (~M-x plan-polsl-sync~): Generates Org-mode files with recurring active timestamps, tags, and property drawers.
-- *USOS Integration* (~M-x plan-polsl-usos-setup~, ~M-x plan-polsl-usos-login~): Log in with your USOS account and get your personal timetable, with exact dates, holidays and exams, in the same buffer and in Org-Agenda. See [[#usos-integration][USOS Integration]].
+- *Timetable Buffer* (~M-x plan-polsl~): Asynchronous timetable viewer.
+- *Current Week View:* Opens on the current academic week, with dates.
+- *Course Inspector:* ~RET~ shows full class details in a side window.
+- *Search* (~M-x plan-polsl-search~): Fuzzy search for teachers, rooms and groups.
+- *Course Notes* (~n~): A note for the class at point, in a directory per course. See [[#course-notes][Course Notes]].
+- *Events* (~c~ / ~e~ / ~D~): Dean's hours, days off, tests and exams in one synced Org file. See [[#events][Events]].
+- *Org-Agenda* (~M-x plan-polsl-sync~): Exports the timetable to an Org file.
+- *USOS* (~M-x plan-polsl-usos-login~): Your personal timetable, with exact dates. See [[#usos-integration][USOS Integration]].
 
 ** How to Find Your Schedule ID
 
-You can obtain your ~plan-polsl-id~ and ~plan-polsl-type~ using either of two methods:
+Get ~plan-polsl-id~ and ~plan-polsl-type~ in one of two ways:
 
 *** Method 1: Directly inside Emacs (Recommended)
 1. Run ~M-x plan-polsl-search~.
-2. Choose your category (Student group, Teacher, or Room).
-3. Select your desired timetable.
-4. Schedule opens in the buffer, displaying the ID in the header banner.
-5. Copy the ID into your configuration.
+2. Choose a category (group, teacher or room) and a timetable.
+3. Copy the ID from the header into your configuration.
 
 *** Method 2: From the browser URL
-Open the schedule on [[https://plan.polsl.pl/][plan.polsl.pl]] and check the browser address bar:
+Open the timetable on [[https://plan.polsl.pl/][plan.polsl.pl]] and read the URL:
 - *Student Group:* ~plan.php?type=0&id=343266256~ $\to$ ~plan-polsl-id "343266256"~, ~plan-polsl-type 0~
 - *Teacher:* ~plan.php?type=10&id=600~ $\to$ ~plan-polsl-id "600"~, ~plan-polsl-type 10~
 - *Room / Resource:* ~plan.php?type=20&id=51112~ $\to$ ~plan-polsl-id "51112"~, ~plan-polsl-type 20~
 
-The address bar probably will be empty, to have this displayed, do the following:
-#+BEGIN_QUOTE
-I'm using Mozilla Firefox, so I'm going with their convention. Probably you should check that
-out for yourself if you are using something different.
-#+END_QUOTE
+The timetable sits in a frame, so the address bar does not show it. In Firefox:
 
-1. Right click near the plan table.
-2. From the context menu choose: ~This frame (pl. Ta ramka)~ -> ~Show only this frame (pl. Pokaż tylko tę ramkę)~
-3. Congratulations! You've got yourself fully armed address bar with desired parameters.
+1. Right click near the timetable.
+2. Choose ~This frame (Ta ramka)~ -> ~Show only this frame (Pokaż tylko tę ramkę)~.
 
 ** Configuration Examples (use-package)
-
-Configure the package parameters directly in your Emacs configuration:
 
 *** 1. Student Group (~type=0~)
 #+begin_src elisp
@@ -90,10 +81,9 @@ Configure the package parameters directly in your Emacs configuration:
 
 ** Timetable Width
 
-The timetable is at most 120 columns wide, or narrower when its window
-is. Course names, group, room and lecturer lists and the header are
-wrapped between words to fit. Change the limit with
-~plan-polsl-view-width~, or set it to ~nil~ to use the whole window:
+The timetable is at most 120 columns wide (less in a narrower window);
+longer text wraps between words. Set ~plan-polsl-view-width~ to change
+the limit, or to ~nil~ to use the whole window:
 
 #+begin_src elisp
   (setq plan-polsl-view-width 100)
@@ -101,32 +91,26 @@ wrapped between words to fit. Change the limit with
 
 ** Semester Start Date
 
-Week numbers, odd/even (nieparzysty/parzysty) weeks and the first
-occurrence of every class in Org-Agenda are counted from the start of
-the semester. The dean announces this date every semester, so enter it
-once per semester:
+Week numbers and odd/even weeks are counted from the semester start.
+Enter the date announced by the dean once per semester:
 
 #+begin_src
   M-x plan-polsl-set-semester-start RET 2026-10-01 RET
 #+end_src
 
-Both ~2026-10-01~ and ~01.10.2026~ are accepted. Week 1 is the week
-containing that day, whatever weekday it is, and classes are not placed
-before it. The date is stored in ~~/.local/share/plan-polsl/semester.eld~,
-not in your configuration.
+~2026-10-01~ and ~01.10.2026~ both work. Week 1 is the week containing
+that day. The date is saved in ~~/.local/share/plan-polsl/semester.eld~.
 
-Without a saved date, ~plan-polsl-semester-start~ is used if set, and
-otherwise October 1st (winter) or early March (summer). A saved or
-configured date is ignored once its semester is over (after 26 weeks),
-so a forgotten date does not shift the parity of the next semester;
-just enter the new one when it is announced.
+Without it, ~plan-polsl-semester-start~ is used, or else October 1st
+(winter) or early March (summer). A date older than 26 weeks is
+ignored, so last semester's date never shifts the parity.
 
 ** Course Notes
 :PROPERTIES:
 :CUSTOM_ID: course-notes
 :END:
 
-Point ~plan-polsl-notes-directory~ at the directory for your notes:
+Set the notes directory:
 
 #+begin_src elisp
   (use-package plan-polsl
@@ -134,34 +118,24 @@ Point ~plan-polsl-notes-directory~ at the directory for your notes:
     (plan-polsl-notes-directory "~/Dokumenty/studia/notatki"))
 #+end_src
 
-Then press ~n~ on a class in the timetable, or in the details opened
-with ~RET~:
+Press ~n~ on a class (or in its ~RET~ details):
 
-1. Every course gets its own directory, named after the first letters
-   of its full name: /Analiza danych i inteligencja obliczeniowa/
-   becomes ~ADIIO~. The first time, the name is suggested in the
-   minibuffer, so you can accept it with ~RET~ or change it first. When
-   the directory already exists, this step is skipped.
-2. The minibuffer opens in that directory; type the file name with its
-   extension, e.g. ~wyklad-1.org~ or ~lab.md~.
-3. The file is created (an existing one is left as is) and opened in
-   another window.
+1. The course directory is named after its initials:
+   /Analiza danych i inteligencja obliczeniowa/ becomes ~ADIIO~. Accept
+   the name with ~RET~ or edit it. Skipped when the directory exists.
+2. Type the file name with its extension, e.g. ~wyklad-1.org~.
+3. The file is created if needed and opened in another window.
 
-A directory name you changed is remembered per course in
-~plan-polsl-notes-file~ (~~/.local/share/plan-polsl/notes.eld~), so later
-notes go to the same directory without asking. A course from
-plan.polsl.pl without a full name in the legend keeps its abbreviation
-(e.g. ~PSy~) as the directory name.
+A changed directory name is remembered per course in
+~~/.local/share/plan-polsl/notes.eld~.
 
 ** Events
 :PROPERTIES:
 :CUSTOM_ID: events
 :END:
 
-Dean's hours, days off, tests, exams and project
-deadlines are not part of any timetable. Keep them in one Org file,
-ideally in a repository you synchronize (such as your dotfiles), so
-every device shows the same events:
+Dean's hours, days off, tests and exams live in one Org file. Keep it
+in a synced repository (e.g. your dotfiles) to share it across devices:
 
 #+begin_src elisp
   (use-package plan-polsl
@@ -170,20 +144,14 @@ every device shows the same events:
 #+end_src
 
 *** Adding and editing
-- ~c~ on any day of the timetable creates an event. The minibuffer asks,
-  step by step, for the type, the date (Org calendar, starting at that
-  day), the last day (days off and dean's hours only), the
-  hours (blank for the whole day), the course (with completion), the
-  room and the name. On a class, its hours, course and room are
-  suggested.
-- ~e~ edits the event on the current line, or an event of the day at
-  point (asking which one when there are several), with every step
-  prefilled.
-- ~D~ deletes it after confirmation.
+- ~c~ on a day creates an event. The minibuffer asks for the type,
+  date, hours (blank = whole day), course, room and name. On a class,
+  its hours, course and room are prefilled.
+- ~e~ edits the event at point, with every step prefilled.
+- ~D~ deletes it.
 
-The file stays chronological and readable; you can also edit it by
-hand. Text you write under an event is kept when it is edited with
-~e~:
+The file is plain Org, so you can also edit it by hand. Notes under an
+event survive ~e~:
 
 #+begin_src org
   ,* Godziny dziekańskie: inauguracja :dziekanskie:
@@ -201,69 +169,63 @@ hand. Text you write under an event is kept when it is edited with
   <2026-12-22 wto>--<2027-01-06 śro>
 #+end_src
 
-The type is the tag: ~dziekanskie~, ~wolne~, ~kolokwium~,
-~egzamin~, ~projekt~, ~odrabianie~ or ~inne~. Other headings are ignored,
-and the file is read again whenever it changes, e.g. after ~git pull~.
+The tag is the type: ~dziekanskie~, ~wolne~, ~kolokwium~, ~egzamin~,
+~projekt~, ~odrabianie~ or ~inne~. The file is reread when it changes.
 
 *** How events are shown
-- *Dean's hours and days off* are shown next to the day
-  heading, and the classes they overlap are struck through and marked
-  /ODWOŁANE/.
-- *Other events* are listed among the classes of their day with their
-  course and room; ~n~ on a test opens the notes of its course.
-- *Upcoming events* of the next ~plan-polsl-events-upcoming-days~ days
-  (14 by default, ~0~ hides them) are listed in the header.
-- *Org-Agenda:* the events file is added to ~org-agenda-files~ (with
-  ~plan-polsl-auto-add-to-agenda~). ~plan-polsl-sync~ leaves cancelled
-  classes out; for plan.polsl.pl this means exporting every meeting of
-  the semester with its own date instead of weekly repeating
-  timestamps, which cannot skip a single week.
+- *Dean's hours and days off* appear next to the day heading; classes
+  they overlap are struck through and marked /ODWOŁANE/.
+- *Other events* appear among the day's classes; ~n~ on a test opens
+  its course notes.
+- *Upcoming events* (next ~plan-polsl-events-upcoming-days~ days, 14 by
+  default) are listed in the header.
+- *Org-Agenda:* the events file is added to ~org-agenda-files~, and
+  ~plan-polsl-sync~ leaves cancelled classes out.
 
 ** USOS Integration
 :PROPERTIES:
 :CUSTOM_ID: usos-integration
 :END:
 
-Instead of a group timetable from plan.polsl.pl you can use your *personal* timetable from USOS. Once you are logged in, ~M-x plan-polsl~ and ~M-x plan-polsl-sync~ use USOS by default.
+Use your *personal* USOS timetable instead of a group one. Once you log in, ~M-x plan-polsl~ and ~M-x plan-polsl-sync~ use USOS.
 
-No keys or secrets ship with this package. USOS API identifies applications by a /consumer key/, which you register yourself for free, and you log in with your own USOS account.
+No keys ship with the package: register your own free /consumer key/ and log in with your USOS account.
 
 *** 1. Register a USOS API consumer key
 1. Open [[https://usosapi.polsl.pl/developers/][usosapi.polsl.pl/developers]] and log in with your USOS account.
-2. Register a new application (any name, e.g. /Emacs plan-polsl/).
-3. Note the *Consumer Key* and *Consumer Secret*. Treat the secret like a password.
+2. Register an application (any name).
+3. Note the *Consumer Key* and *Consumer Secret*. Keep the secret private.
 
 *** 2. Enter the key in Emacs
-Run ~M-x plan-polsl-usos-setup~ and paste the Consumer Key and then the Consumer Secret (the secret is not echoed). Running ~M-x plan-polsl-usos-login~ first asks for them as well.
+Run ~M-x plan-polsl-usos-setup~ (or just ~plan-polsl-usos-login~) and paste the key and secret.
 
-Both are saved to ~plan-polsl-usos-consumer-file~, by default ~~/.local/share/plan-polsl/usos-consumer.eld~ (~$XDG_DATA_HOME/plan-polsl/~), with permissions ~0600~. Nothing has to be added to your Emacs configuration, so a public dotfiles repository stays clean. Files live outside ~user-emacs-directory~ on purpose, because that directory is often the repository itself.
+They are saved to ~~/.local/share/plan-polsl/usos-consumer.eld~ (mode ~0600~), outside your Emacs configuration, so public dotfiles stay clean.
 
 *** 3. Log in
 1. Run ~M-x plan-polsl-usos-login~.
-2. Your browser opens the USOS authorization page (its URL is also copied to the kill ring).
-3. Log in, allow access, and copy the PIN that USOS shows.
-4. Paste the PIN into the minibuffer.
+2. Allow access in the browser (the URL is also in the kill ring).
+3. Paste the PIN from USOS into the minibuffer.
 
-The access token is stored next to the key in ~plan-polsl-usos-token-file~ (~~/.local/share/plan-polsl/usos-token.eld~), also with permissions ~0600~. Give either file a ~.gpg~ suffix to have it encrypted by EasyPG. The package requests the ~studies~ permission (to read your timetable) and ~offline_access~ (so that you do not have to log in again every few hours).
+The token is saved in ~~/.local/share/plan-polsl/usos-token.eld~ (mode ~0600~; a ~.gpg~ suffix encrypts it). Requested scopes: ~studies~ and ~offline_access~.
 
-Run ~M-x plan-polsl-usos-logout~ to revoke the token and delete it, or ~C-u M-x plan-polsl-usos-logout~ to also delete the stored key and secret.
+~M-x plan-polsl-usos-logout~ revokes the token; with ~C-u~ it also forgets the key.
 
 *** Alternative: key in configuration and auth-source
-If you prefer managing credentials yourself, skip ~plan-polsl-usos-setup~, set ~plan-polsl-usos-consumer-key~ and put the secret in ~~/.authinfo.gpg~ (or set ~plan-polsl-usos-consumer-secret~, keeping it out of version control):
+Or set ~plan-polsl-usos-consumer-key~ and put the secret in ~~/.authinfo.gpg~:
 
 #+begin_example
 machine usosapi.polsl.pl login YOUR_CONSUMER_KEY password YOUR_CONSUMER_SECRET
 #+end_example
 
-A key saved with ~plan-polsl-usos-setup~ takes precedence over this.
+A key saved with ~plan-polsl-usos-setup~ wins.
 
 *** How it behaves
-- *Default timetable:* while logged in, ~M-x plan-polsl~ opens your USOS timetable in the ~*Plan PolSL: USOS*~ buffer. ~C-u M-x plan-polsl~ opens the plan.polsl.pl timetable of ~plan-polsl-id~ instead.
-- *Week by week:* USOS serves one week per request, so ~<~ / ~>~ / ~w~ / ~t~ fetch weeks on demand. Visited weeks are cached; ~r~ fetches again.
-- *Exact dates:* entries are real meetings, so holidays, cancelled classes and exams are reflected. Saturday and Sunday appear when they have classes.
-- *Details:* ~RET~ shows the date, cycle, lecturers, room, building and a link to the class page in USOSweb.
-- *Org-Agenda:* ~M-x plan-polsl-sync~ (or ~s~) exports ~plan-polsl-usos-sync-weeks~ weeks from the current one, with plain (non-repeating) timestamps grouped by date.
-- Set ~plan-polsl-usos-default~ to ~nil~ to keep plan.polsl.pl as the default; the USOS timetable is then available with ~M-x plan-polsl-usos~.
+- *Default timetable:* ~M-x plan-polsl~ opens USOS; ~C-u M-x plan-polsl~ opens plan.polsl.pl.
+- *Week by week:* weeks are fetched on demand and cached; ~r~ refetches.
+- *Exact dates:* holidays and cancelled classes are reflected; weekends show when they have classes.
+- *Details:* ~RET~ shows lecturers, room, building and a USOSweb link.
+- *Org-Agenda:* ~s~ exports ~plan-polsl-usos-sync-weeks~ weeks with dated timestamps.
+- ~plan-polsl-usos-default~ set to ~nil~ keeps plan.polsl.pl as default (USOS via ~M-x plan-polsl-usos~).
 
 *** USOS options
 
