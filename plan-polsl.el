@@ -78,6 +78,7 @@
 (require 'plan-polsl-parser)
 (require 'plan-polsl-usos)
 (require 'plan-polsl-view)
+(require 'plan-polsl-notes)
 (require 'plan-polsl-search)
 (require 'plan-polsl-org)
 (require 'plan-polsl-ui)
