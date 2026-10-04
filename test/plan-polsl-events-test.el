@@ -95,5 +95,109 @@ Rozdziały 1-3.
                           (plan-polsl-events-on-date "2026-11-19"))
                   '("kolokwium")))))
 
+(defun plan-polsl-events-test--file-string ()
+  "Return the contents of the events file."
+  (with-temp-buffer
+    (insert-file-contents plan-polsl-events-file)
+    (buffer-string)))
+
+(defmacro plan-polsl-events-test--cleanup (&rest body)
+  "Run BODY, then kill the buffer visiting the events file."
+  (declare (indent 0))
+  `(unwind-protect (progn ,@body)
+     (when-let* ((buf (find-buffer-visiting plan-polsl-events-file)))
+       (with-current-buffer buf (set-buffer-modified-p nil))
+       (kill-buffer buf))))
+
+(ert-deftest plan-polsl-events-test-timestamp ()
+  (should (equal (plan-polsl-events-timestamp
+                  '(:start "2026-10-01" :end "2026-10-01" :from "12:00" :to "18:00"))
+                 "<2026-10-01 czw 12:00-18:00>"))
+  (should (equal (plan-polsl-events-timestamp '(:start "2026-10-04" :end "2026-10-04"))
+                 "<2026-10-04 nie>"))
+  (should (equal (plan-polsl-events-timestamp
+                  '(:start "2026-12-22" :end "2027-01-06" :from "12:00"))
+                 "<2026-12-22 wto 12:00>--<2027-01-06 śro>")))
+
+(ert-deftest plan-polsl-events-test-add-sorted ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (plan-polsl-events-add '(:type "egzamin" :title "Egzamin AM" :start "2026-11-20"
+                                   :end "2026-11-20" :from "09:00" :to "11:00"
+                                   :room "Aula A"))
+    (plan-polsl-events-add '(:type "inne" :title "Juwenalia" :start "2027-05-20"
+                                   :end "2027-05-20"))
+    (should (equal (mapcar (lambda (e) (plist-get e :title)) (plan-polsl-events-list))
+                   '("Godziny rektorskie: inauguracja" "Kolokwium 1" "Egzamin AM"
+                     "Przerwa świąteczna" "Juwenalia")))
+    (should (string-match-p
+             (regexp-quote "Rozdziały 1-3.
+
+* Egzamin AM :egzamin:
+:PROPERTIES:
+:SALA: Aula A
+:END:
+<2026-11-20 pią 09:00-11:00>
+
+* Przerwa świąteczna")
+             (plan-polsl-events-test--file-string)))
+    (should (string-suffix-p "* Juwenalia :inne:\n<2027-05-20 czw>\n\n"
+                             (plan-polsl-events-test--file-string))))))
+
+(ert-deftest plan-polsl-events-test-new-file ()
+  (let* ((dir (make-temp-file "plan-polsl-events" t))
+         (plan-polsl-events-file (expand-file-name "sub/wydarzenia.org" dir)))
+    (unwind-protect
+        (plan-polsl-events-test--cleanup
+         (plan-polsl-events-add '(:type "wolne" :title "Rektorskie" :start "2026-10-02"
+                                        :end "2026-10-02"))
+         (should (equal (plan-polsl-events-test--file-string)
+                        "#+title: Wydarzenia PolSL\n\n* Rektorskie :wolne:\n<2026-10-02 pią>\n\n")))
+      (delete-directory dir t))))
+
+(ert-deftest plan-polsl-events-test-update-keeps-notes ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (with-temp-file plan-polsl-events-file
+      (insert "* Kolokwium 1 :kolokwium:
+:PROPERTIES:
+:PRZEDMIOT: Fizyka
+:ID:       abc
+:END:
+<2026-11-19 czw 14:00-16:15> przynieść kalkulator
+Rozdziały 1-3.
+
+* Inne :inne:
+<2026-12-01 wto>
+"))
+    (let* ((old (car (plan-polsl-events-list)))
+           (new (plist-put (plist-put (copy-sequence old) :title "Kolokwium poprawkowe")
+                           :start "2027-01-10")))
+      (setq new (plist-put new :end "2027-01-10"))
+      (plan-polsl-events-update old new))
+    (should (equal (plan-polsl-events-test--file-string)
+                   "* Inne :inne:
+<2026-12-01 wto>
+
+* Kolokwium poprawkowe :kolokwium:
+:PROPERTIES:
+:PRZEDMIOT: Fizyka
+:ID:       abc
+:END:
+<2027-01-10 nie 14:00-16:15>
+przynieść kalkulator
+Rozdziały 1-3.
+
+")))))
+
+(ert-deftest plan-polsl-events-test-delete ()
+  (plan-polsl-events-test--with-file
+   (plan-polsl-events-test--cleanup
+    (plan-polsl-events-delete (nth 1 (plan-polsl-events-list)))
+    (should (equal (mapcar (lambda (e) (plist-get e :type)) (plan-polsl-events-list))
+                   '("rektorskie" "wolne")))
+    (should-not (string-match-p "Rozdziały" (plan-polsl-events-test--file-string)))
+    (should-error (plan-polsl-events-delete '(:title "Brak")) :type 'user-error))))
+
 (provide 'plan-polsl-events-test)
 ;;; plan-polsl-events-test.el ends here

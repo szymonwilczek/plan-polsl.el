@@ -24,6 +24,7 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'time-date)
 
 (defcustom plan-polsl-events-file nil
   "Org file holding academic events, such as tests and days off.
@@ -100,6 +101,7 @@ timestamp are skipped."
     (let ((events nil))
       (while (re-search-forward plan-polsl-events--heading-re nil t)
         (let* ((pos (match-beginning 0))
+               (level (length (match-string 1)))
                (title (match-string-no-properties 2))
                (tags (split-string (match-string-no-properties 3) ":" t))
                (type (cl-find-if (lambda (tag) (assoc tag plan-polsl-events-types)) tags))
@@ -119,6 +121,7 @@ timestamp are skipped."
                         :to (plist-get ts :to)
                         :course (plan-polsl-events--property section "PRZEDMIOT")
                         :room (plan-polsl-events--property section "SALA")
+                        :level level
                         :pos pos
                         :end-pos end-pos)
                   events))))
@@ -172,6 +175,169 @@ START and END are \"hh:mm\"; EVENTS default to all events."
                        (and (string< start (cdr hours))
                             (string< (car hours) end)))))
               (plan-polsl-events-on-date date events)))
+
+(defconst plan-polsl-events--day-abbrevs
+  ["nie" "pon" "wto" "śro" "czw" "pią" "sob"]
+  "Day names for Org timestamps, indexed by `decode-time' weekday.")
+
+(defun plan-polsl-events--date-stamp (date &optional from to)
+  "Return an active Org timestamp for DATE with optional FROM-TO hours."
+  (pcase-let ((`(,y ,m ,d) (mapcar #'string-to-number (split-string date "-"))))
+    (format "<%s %s%s>"
+            date
+            (aref plan-polsl-events--day-abbrevs
+                  (nth 6 (decode-time (encode-time 0 0 12 d m y))))
+            (cond ((and from to) (format " %s-%s" from to))
+                  (from (concat " " from))
+                  (t "")))))
+
+(defun plan-polsl-events-timestamp (event)
+  "Return the Org timestamp or range of EVENT."
+  (let ((start (plist-get event :start))
+        (end (plist-get event :end))
+        (from (plist-get event :from))
+        (to (plist-get event :to)))
+    (if (equal start end)
+        (plan-polsl-events--date-stamp start from to)
+      (concat (plan-polsl-events--date-stamp start from)
+              "--"
+              (plan-polsl-events--date-stamp end to)))))
+
+(defun plan-polsl-events--key (event)
+  "Return the fields identifying EVENT in its file."
+  (mapcar (lambda (k) (plist-get event k))
+          '(:type :title :start :end :from :to :course :room)))
+
+(defun plan-polsl-events--format (event &optional level props body)
+  "Return the Org text of EVENT as a heading of LEVEL (default 1).
+PROPS are further property lines and BODY further text kept from an
+earlier version of the event."
+  (let ((drawer (append
+                 (when-let* ((course (plist-get event :course)))
+                   (list (format ":PRZEDMIOT: %s" course)))
+                 (when-let* ((room (plist-get event :room)))
+                   (list (format ":SALA: %s" room)))
+                 props)))
+    (concat (make-string (or level 1) ?*) " "
+            (plist-get event :title) " :" (plist-get event :type) ":
+"
+            (if drawer
+                (concat ":PROPERTIES:
+" (mapconcat #'identity drawer "
+") "
+:END:
+")
+              "")
+            (plan-polsl-events-timestamp event) "
+"
+            (if (and body (not (string-empty-p body))) (concat body "
+") "")
+            "
+")))
+
+(defun plan-polsl-events--leftovers (section)
+  "Return (PROPS . BODY) of event SECTION text not managed by this package.
+PROPS are property lines other than PRZEDMIOT and SALA, BODY the text
+left after removing the property drawer and the event timestamp."
+  (with-temp-buffer
+    (insert section)
+    (let ((props nil))
+      (goto-char (point-min))
+      (when-let* ((ts (plan-polsl-events--parse-timestamp (buffer-string))))
+        (delete-region (1+ (plist-get ts :ts-beg)) (1+ (plist-get ts :ts-end)))
+        (goto-char (1+ (plist-get ts :ts-beg)))
+        (if (string-blank-p (buffer-substring (line-beginning-position) (line-end-position)))
+            (delete-region (line-beginning-position)
+                           (min (point-max) (1+ (line-end-position))))
+          (delete-region (point) (progn (skip-chars-forward " \t") (point)))))
+      (goto-char (point-min))
+      (when (re-search-forward "^[ 	]*:PROPERTIES:[ 	]*
+" nil t)
+        (let ((beg (match-beginning 0)))
+          (while (and (not (looking-at "^[ 	]*:END:")) (not (eobp)))
+            (let ((line (string-trim (buffer-substring (line-beginning-position)
+                                                       (line-end-position)))))
+              (unless (string-match-p "\\`:\\(PRZEDMIOT\\|SALA\\):" line)
+                (push line props)))
+            (forward-line 1))
+          (forward-line 1)
+          (delete-region beg (point))))
+      (cons (nreverse props) (string-trim (buffer-string) "[
+]+" "[ 	
+]+")))))
+
+(defun plan-polsl-events--before-p (a b)
+  "Return non-nil when event A starts before event B."
+  (string< (concat (plist-get a :start) (or (plist-get a :from) ""))
+           (concat (plist-get b :start) (or (plist-get b :from) ""))))
+
+(defun plan-polsl-events--insert (event &optional props body)
+  "Insert EVENT into the current buffer, keeping events sorted by start.
+PROPS and BODY are passed to `plan-polsl-events--format'."
+  (let* ((events (plan-polsl-events-parse-buffer))
+         (next (cl-find-if (lambda (e) (plan-polsl-events--before-p event e)) events))
+         (level (plist-get (or next (car (last events))) :level)))
+    (save-excursion
+      (if next
+          (goto-char (plist-get next :pos))
+        (goto-char (point-max))
+        (unless (bobp)
+          (skip-chars-backward " 	
+")
+          (delete-region (point) (point-max))
+          (insert "
+
+")))
+      (insert (plan-polsl-events--format event level props body)))))
+
+(defun plan-polsl-events--find (event)
+  "Return the event in the current buffer matching EVENT, or signal."
+  (or (cl-find (plan-polsl-events--key event) (plan-polsl-events-parse-buffer)
+               :key #'plan-polsl-events--key :test #'equal)
+      (user-error "Nie znaleziono wydarzenia \"%s\" w pliku (zmienione w międzyczasie?)"
+                  (plist-get event :title))))
+
+(defun plan-polsl-events--file ()
+  "Return the expanded events file name, or signal when unset."
+  (unless plan-polsl-events-file
+    (user-error "Ustaw plik wydarzeń: plan-polsl-events-file"))
+  (expand-file-name plan-polsl-events-file))
+
+(defmacro plan-polsl-events--with-file (&rest body)
+  "Run BODY in a buffer visiting the events file, then save it.
+A missing file is created with a title line."
+  (declare (indent 0))
+  `(let ((file (plan-polsl-events--file)))
+     (make-directory (file-name-directory file) t)
+     (with-current-buffer (find-file-noselect file)
+       (when (= (buffer-size) 0)
+         (insert "#+title: Wydarzenia PolSL\n\n"))
+       (prog1 (progn ,@body)
+         (save-buffer)))))
+
+(defun plan-polsl-events-add (event)
+  "Add EVENT to `plan-polsl-events-file'."
+  (plan-polsl-events--with-file
+    (plan-polsl-events--insert event)))
+
+(defun plan-polsl-events-update (old new)
+  "Replace event OLD with NEW in `plan-polsl-events-file'.
+Notes and properties written under OLD by hand are kept."
+  (plan-polsl-events--with-file
+    (let* ((found (plan-polsl-events--find old))
+           (body-beg (save-excursion
+                       (goto-char (plist-get found :pos))
+                       (min (point-max) (1+ (line-end-position)))))
+           (rest (plan-polsl-events--leftovers
+                  (buffer-substring-no-properties body-beg (plist-get found :end-pos)))))
+      (delete-region (plist-get found :pos) (plist-get found :end-pos))
+      (plan-polsl-events--insert new (car rest) (cdr rest)))))
+
+(defun plan-polsl-events-delete (event)
+  "Remove EVENT from `plan-polsl-events-file'."
+  (plan-polsl-events--with-file
+    (let ((found (plan-polsl-events--find event)))
+      (delete-region (plist-get found :pos) (plist-get found :end-pos)))))
 
 (provide 'plan-polsl-events)
 ;;; plan-polsl-events.el ends here
