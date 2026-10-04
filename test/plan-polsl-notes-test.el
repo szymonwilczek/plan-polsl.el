@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'plan-polsl-notes)
 
@@ -35,6 +36,41 @@
    (should (equal (plan-polsl-notes--saved-name "Fizyka") "FIZ"))
    (should (equal (plan-polsl-notes--saved-name "Analiza matematyczna") "AM"))
    (should (= (file-modes plan-polsl-notes-file) #o600))))
+
+(ert-deftest plan-polsl-notes-test-directory-unset ()
+  (let ((plan-polsl-notes-directory nil))
+    (should-error (plan-polsl-notes--course-directory "Fizyka") :type 'user-error)))
+
+(ert-deftest plan-polsl-notes-test-directory-created ()
+  (plan-polsl-notes-test--with-dirs
+    (let (initial)
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (_prompt init) (setq initial init) "ADIIO-lab")))
+        (should (equal (plan-polsl-notes--course-directory
+                        "Analiza danych i inteligencja obliczeniowa")
+                       (file-name-as-directory (expand-file-name "ADIIO-lab" notes)))))
+      (should (equal initial "ADIIO"))
+      (should (file-directory-p (expand-file-name "ADIIO-lab" notes)))
+      ;; the chosen name is found next time without asking
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) (error "Should not ask"))))
+        (should (equal (plan-polsl-notes--course-directory
+                        "Analiza danych i inteligencja obliczeniowa")
+                       (file-name-as-directory (expand-file-name "ADIIO-lab" notes))))))))
+
+(ert-deftest plan-polsl-notes-test-directory-existing ()
+  (plan-polsl-notes-test--with-dirs
+    (make-directory (expand-file-name "AM" notes))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (&rest _) (error "Should not ask"))))
+      (should (equal (plan-polsl-notes--course-directory "Analiza matematyczna")
+                     (file-name-as-directory (expand-file-name "AM" notes)))))
+    (should-not (plan-polsl-notes--saved-name "Analiza matematyczna"))))
+
+(ert-deftest plan-polsl-notes-test-directory-empty-name ()
+  (plan-polsl-notes-test--with-dirs
+    (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "  ")))
+      (should-error (plan-polsl-notes--course-directory "Fizyka") :type 'user-error))))
 
 (provide 'plan-polsl-notes-test)
 ;;; plan-polsl-notes-test.el ends here

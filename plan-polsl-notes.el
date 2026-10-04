@@ -13,6 +13,7 @@
 
 ;;; Code:
 
+(require 'seq)
 (require 'subr-x)
 (require 'plan-polsl-store)
 
@@ -52,6 +53,36 @@ TITLE, such as an abbreviation from plan.polsl.pl, is kept as is."
                             (list :directories
                                   (cons (cons title name)
                                         (assoc-delete-all title dirs))))))
+
+(defun plan-polsl-notes--root ()
+  "Return `plan-polsl-notes-directory' as a directory name.
+Signal `user-error' when it is not set."
+  (unless plan-polsl-notes-directory
+    (user-error "Ustaw katalog notatek: plan-polsl-notes-directory"))
+  (file-name-as-directory (expand-file-name plan-polsl-notes-directory)))
+
+(defun plan-polsl-notes--course-directory (title)
+  "Return the note directory of course TITLE, creating it when needed.
+An existing directory with the saved or the default name is used
+right away. Otherwise the name is read in the minibuffer, prefilled
+with the default, and remembered."
+  (let* ((root (plan-polsl-notes--root))
+         (default (plan-polsl-notes--abbreviation title))
+         (existing (seq-find (lambda (name)
+                               (and name (not (string-empty-p name))
+                                    (file-directory-p (expand-file-name name root))))
+                             (list (plan-polsl-notes--saved-name title) default))))
+    (if existing
+        (file-name-as-directory (expand-file-name existing root))
+      (let ((name (string-trim
+                   (read-string (format "Katalog notatek (%s): " title)
+                                (or (plan-polsl-notes--saved-name title) default)))))
+        (when (string-empty-p name)
+          (user-error "Nie podano nazwy katalogu"))
+        (let ((dir (file-name-as-directory (expand-file-name name root))))
+          (make-directory dir t)
+          (plan-polsl-notes--save-name title name)
+          dir)))))
 
 (provide 'plan-polsl-notes)
 ;;; plan-polsl-notes.el ends here
