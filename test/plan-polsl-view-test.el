@@ -293,6 +293,15 @@
     (aset days 0 (list (list :title "Fizyka")))
     (should (= (plan-polsl-view--compute-subject-width days 120) 18))))
 
+(ert-deftest plan-polsl-view-test-wrap-keys ()
+  (should (equal (plan-polsl-view--wrap-keys '("[q] Zamknij" "[r] Odśwież") nil)
+                 '("  [q] Zamknij   [r] Odśwież")))
+  (should (equal (plan-polsl-view--wrap-keys
+                  '("[q] Zamknij" "[r] Odśwież" "[< / >] Tygodnie") 30)
+                 '("  [q] Zamknij   [r] Odśwież" "  [< / >] Tygodnie")))
+  (dolist (l (plan-polsl-view--wrap-keys plan-polsl-view--header-keys 120))
+    (should (<= (string-width l) 120))))
+
 (ert-deftest plan-polsl-view-test-width-limit ()
   (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
     (let ((plan-polsl-view-width 120))

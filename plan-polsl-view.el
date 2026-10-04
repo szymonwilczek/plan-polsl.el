@@ -288,6 +288,26 @@ of its own. When WIDTH is nil, TEXT stays on one line."
       (when line (push line lines))
       (nreverse lines))))
 
+(defconst plan-polsl-view--header-keys
+  '("[q] Zamknij" "[r] Odśwież" "[s] Synchronizuj" "[t] Dziś" "[w] Tydzień"
+    "[< / >] Tygodnie" "[n] Notatka" "[?] Pomoc")
+  "Key hints listed in the timetable header.")
+
+(defun plan-polsl-view--wrap-keys (keys width)
+  "Lay out KEYS hints in lines at most WIDTH columns wide.
+Hints are indented, separated by three spaces and never split. When
+WIDTH is nil, all of them stay on one line."
+  (let ((lines nil) (line nil))
+    (dolist (key keys)
+      (if (or (null line)
+              (null width)
+              (<= (+ (string-width line) 3 (string-width key)) width))
+          (setq line (if line (concat line "   " key) (concat "  " key)))
+        (push line lines)
+        (setq line (concat "  " key))))
+    (when line (push line lines))
+    (nreverse lines)))
+
 (defun plan-polsl-view--wrap-meta (items width)
   "Lay out meta ITEMS as lines at most WIDTH columns wide.
 Items are joined with \" • \" and broken between items or after the
@@ -636,17 +656,17 @@ minus one column for the continuation glyph, but at most
          (max-subj-w (plan-polsl-view--compute-subject-width day-groups width))
          (rendered-days (make-vector 7 nil))
          (all-lines nil)
-         (header-line-1 (if path (format "%s" path) ""))
-         (header-line-2 (if (eq type-val 'usos)
-                            (format "Plan Zajęć: %s (USOS)" title)
-                          (format "Plan Zajęć: %s (ID: %s)" title id)))
-         (header-line-3 (format "Tydzień: %s" week-label))
-         (header-line-4 "  [q] Zamknij   [r] Odśwież   [s] Synchronizuj   [t] Dziś   [w] Tydzień   [< / >] Tygodnie   [n] Notatka   [?] Pomoc"))
+         (path-lines (and path (plan-polsl-view--wrap-words path width)))
+         (title-lines (plan-polsl-view--wrap-words
+                       (if (eq type-val 'usos)
+                           (format "Plan Zajęć: %s (USOS)" title)
+                         (format "Plan Zajęć: %s (ID: %s)" title id))
+                       width))
+         (week-lines (plan-polsl-view--wrap-words (format "Tydzień: %s" week-label) width))
+         (key-lines (plan-polsl-view--wrap-keys plan-polsl-view--header-keys width)))
 
-    (when path (push header-line-1 all-lines))
-    (push header-line-2 all-lines)
-    (push header-line-3 all-lines)
-    (push header-line-4 all-lines)
+    (dolist (l (append path-lines title-lines week-lines key-lines))
+      (push l all-lines))
 
     (dotimes (i 7)
       (let ((day-lines nil))
@@ -672,11 +692,14 @@ minus one column for the continuation glyph, but at most
                 plan-polsl-view--rendered-width width)
 
           ;; header banner
-          (when path
-            (insert (propertize (format "%s\n" path) 'face 'font-lock-comment-face)))
-          (insert (propertize (format "%s\n" header-line-2) 'face '(:weight bold :height 1.15)))
-          (insert (propertize (format "%s\n\n" header-line-3) 'face '(:weight bold :foreground "#51afef")))
-          (insert (propertize (format "%s\n" header-line-4) 'face 'font-lock-comment-face))
+          (cl-flet ((insert-lines (lines face)
+                      (dolist (l lines)
+                        (insert (propertize (concat l "\n") 'face face)))))
+            (insert-lines path-lines 'font-lock-comment-face)
+            (insert-lines title-lines '(:weight bold :height 1.15))
+            (insert-lines week-lines '(:weight bold :foreground "#51afef"))
+            (insert "\n")
+            (insert-lines key-lines 'font-lock-comment-face))
           (insert (propertize sep-line 'face 'font-lock-comment-face) "\n\n")
 
           ;; days, weekend only when it has classes
