@@ -62,6 +62,11 @@
   "Face for events such as tests and rector's hours."
   :group 'plan-polsl-faces)
 
+(defface plan-polsl-cancelled-face
+  '((t :inherit shadow))
+  "Face for classes cancelled by an event, such as rector's hours."
+  :group 'plan-polsl-faces)
+
 (defface plan-polsl-meta-face
   '((t :inherit font-lock-comment-face))
   "Face for room, teacher, and section metadata."
@@ -360,6 +365,7 @@ first one."
          (rooms (plist-get entry :rooms))
          (teachers (plist-get entry :teachers))
          (course (plist-get entry :course))
+         (cancelled (plist-get entry :cancelled))
          (biweekly (plist-get entry :biweekly))
          (time-str (propertize (format "%-13s" (cond ((and start end) (format "%s - %s" start end))
                                                      (start start)
@@ -370,7 +376,9 @@ first one."
          (title-str (propertize (format "%s%s"
                                         (if (and biweekly (not (string-prefix-p "*" title))) "* " "")
                                         title)
-                                'face 'plan-polsl-title-face))
+                                'face (if cancelled
+                                          '(:strike-through t :inherit plan-polsl-title-face)
+                                        'plan-polsl-title-face)))
          (sec-str (if sections
                       (propertize (format " (sek. %s)" (mapconcat #'identity sections ", "))
                                   'face 'font-lock-warning-face)
@@ -381,6 +389,8 @@ first one."
          (lead-indent (make-string (string-width lead) ?\s))
          (prefix-width (+ (string-width lead) subject-col-width))
          (meta-items nil))
+    (when cancelled
+      (push (format "ODWOŁANE: %s" (plist-get cancelled :title)) meta-items))
     (when course
       (push (format "Przedmiot: %s" course) meta-items))
     (when groups
@@ -393,19 +403,23 @@ first one."
                             (plan-polsl-view--wrap-meta
                              (nreverse meta-items)
                              (and width (max 20 (- width prefix-width 3))))))
-           (rows (max (length subj-lines) (length meta-lines))))
-      (mapconcat
-       (lambda (i)
-         (let ((subj (nth i subj-lines))
-               (meta (nth i meta-lines)))
-           (concat (if (= i 0) lead lead-indent)
-                   (if meta-lines
-                       (concat (plan-polsl-view--pad-column subj subject-col-width)
-                               (propertize (if meta (concat " │ " meta) " │")
-                                           'face 'plan-polsl-meta-face))
-                     (or subj "")))))
-       (number-sequence 0 (1- rows))
-       "\n"))))
+           (rows (max (length subj-lines) (length meta-lines)))
+           (text
+            (mapconcat
+             (lambda (i)
+               (let ((subj (nth i subj-lines))
+                     (meta (nth i meta-lines)))
+                 (concat (if (= i 0) lead lead-indent)
+                         (if meta-lines
+                             (concat (plan-polsl-view--pad-column subj subject-col-width)
+                                     (propertize (if meta (concat " │ " meta) " │")
+                                                 'face 'plan-polsl-meta-face))
+                           (or subj "")))))
+             (number-sequence 0 (1- rows))
+             "\n")))
+      (when cancelled
+        (add-face-text-property 0 (length text) 'plan-polsl-cancelled-face nil text))
+      text)))
 
 (defun plan-polsl-view--teacher-name (tid initials)
   "Lookup full teacher name for TID in O(1) time with fallback to INITIALS."
@@ -659,6 +673,21 @@ Each day is sorted by start time, with all-day events first."
                                (or (plist-get b :start-time) ""))))))))
   day-groups)
 
+(defun plan-polsl-view--mark-cancelled (day-groups monday-time events)
+  "Mark classes in DAY-GROUPS of the week at MONDAY-TIME cancelled by EVENTS.
+A cancelled class is a copy of its entry with the event as :cancelled."
+  (dotimes (i 7)
+    (let ((date (format-time-string "%F" (time-add monday-time (days-to-time i)))))
+      (aset day-groups i
+            (mapcar (lambda (e)
+                      (let ((ev (and (plist-get e :start-time) (plist-get e :end-time)
+                                     (plan-polsl-events-cancelling
+                                      date (plist-get e :start-time) (plist-get e :end-time)
+                                      events))))
+                        (if ev (append (list :cancelled ev) e) e)))
+                    (aref day-groups i)))))
+  day-groups)
+
 (defun plan-polsl-view--day-banner (date events)
   "Return the banner of cancelling EVENTS on DATE for its day heading, or nil."
   (when-let* ((cancelling (cl-remove-if-not #'plan-polsl-events-cancelling-p
@@ -717,7 +746,9 @@ minus one column for the continuation glyph, but at most
          (week-cycle (plist-get week-info :cycle))
          (events (plan-polsl-events-list))
          (day-groups (plan-polsl-view--add-events
-                      (plan-polsl-view--filter-week-entries entries monday-time week-cycle)
+                      (plan-polsl-view--mark-cancelled
+                       (plan-polsl-view--filter-week-entries entries monday-time week-cycle)
+                       monday-time events)
                       monday-time events))
          (width (plan-polsl-view--width buf))
          (max-subj-w (plan-polsl-view--compute-subject-width day-groups width))

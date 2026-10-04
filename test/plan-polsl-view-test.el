@@ -100,6 +100,21 @@
                                         ;; and show a weekend day that has no classes
                                         (should (search-forward "Sobota (10.10.2026)  ⚑ Zjazd absolwentów" nil t))))))
 
+(ert-deftest plan-polsl-view-test-cancelled ()
+  (plan-polsl-view-test--with-events
+   "* Godziny rektorskie :rektorskie:
+<2026-10-05 pon 09:00-12:00>
+"
+   (cl-letf (((symbol-function 'window-body-width) (lambda (&rest _) 200)))
+     (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                        (should (search-forward "AiR" nil t))
+                                        (should (memq 'plan-polsl-cancelled-face
+                                                      (ensure-list (get-text-property (point) 'face))))
+                                        (should (search-forward "│ ODWOŁANE: Godziny rektorskie • Sala: 301" nil t))
+                                        (should (plist-get (get-text-property (point) 'plan-polsl-entry) :cancelled))
+                                        ;; the stored entries stay untouched
+                                        (should-not (plist-get (car plan-polsl-view-entries) :cancelled))))))
+
 (ert-deftest plan-polsl-view-test-week-navigation ()
   (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
                                      (plan-polsl-next-week)
