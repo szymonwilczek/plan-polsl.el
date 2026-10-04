@@ -84,14 +84,19 @@ with the default, and remembered."
           (plan-polsl-notes--save-name title name)
           dir)))))
 
+(defvar plan-polsl-view-detail-entry)
+
 (defun plan-polsl-notes--entry-at-point ()
-  "Return the timetable entry at point, or nil."
-  (get-text-property (point) 'plan-polsl-entry))
+  "Return the timetable entry at point, or nil.
+In the class detail buffer, that is the class it describes."
+  (or (get-text-property (point) 'plan-polsl-entry)
+      (bound-and-true-p plan-polsl-view-detail-entry)))
 
 ;;;###autoload
 (defun plan-polsl-note (entry)
   "Create or open a note for the course of timetable ENTRY.
-Interactively, ENTRY is the class at point. The note goes to the
+Interactively, ENTRY is the class at point or the one shown in the
+class detail buffer. The note goes to the
 course directory under `plan-polsl-notes-directory', which is created
 first when missing, see `plan-polsl-notes--course-directory'. The file
 name is read with its extension, such as \"wyklad-1.org\" or

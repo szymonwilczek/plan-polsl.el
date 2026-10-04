@@ -85,6 +85,9 @@ When nil, the width of the window showing the timetable is used."
 (defvar-local plan-polsl-view--rendered-width nil
   "Column limit the timetable in this buffer was last rendered for.")
 
+(defvar-local plan-polsl-view-detail-entry nil
+  "Timetable entry shown in the detail buffer.")
+
 (defvar plan-polsl-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'quit-window)
@@ -143,6 +146,7 @@ When nil, the width of the window showing the timetable is used."
     (define-key map (kbd "RET") #'plan-polsl-detail-open-target)
     (define-key map (kbd "<return>") #'plan-polsl-detail-open-target)
     (define-key map (kbd "<mouse-2>") #'plan-polsl-detail-open-target)
+    (define-key map (kbd "n") #'plan-polsl-note)
     map)
   "Keymap for `plan-polsl-detail-mode'.")
 
@@ -174,7 +178,8 @@ When nil, the width of the window showing the timetable is used."
         (evil-define-key* '(normal visual motion) plan-polsl-detail-mode-map
           "q" #'plan-polsl-detail-quit
           (kbd "RET") #'plan-polsl-detail-open-target
-          (kbd "<return>") #'plan-polsl-detail-open-target))))
+          (kbd "<return>") #'plan-polsl-detail-open-target
+          "n" #'plan-polsl-note))))
 
 (defun plan-polsl-detail-quit ()
   "Close detail popup window without quitting the main timetable buffer."
@@ -359,6 +364,7 @@ lines, aligned under the first one."
       (let ((inhibit-read-only t))
         (erase-buffer)
         (plan-polsl-detail-mode)
+        (setq plan-polsl-view-detail-entry entry)
 
         ;; header: full course name
         (insert (propertize (format "%s\n" full-title)

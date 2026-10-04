@@ -116,5 +116,16 @@
     (plan-polsl-mode)
     (should (eq (key-binding (kbd "n")) #'plan-polsl-note))))
 
+(ert-deftest plan-polsl-notes-test-detail-buffer ()
+  (let ((entry (list :title "AM" :full-title "Analiza matematyczna"
+                     :start-time "08:30" :end-time "10:00")))
+    (save-window-excursion
+      (plan-polsl-view--display-detail-popup entry)
+      (with-current-buffer "*Plan PolSL: Szczegóły*"
+        (should (eq (key-binding (kbd "n")) #'plan-polsl-note))
+        (goto-char (point-max))
+        (should (eq (plan-polsl-notes--entry-at-point) entry))))
+    (kill-buffer "*Plan PolSL: Szczegóły*")))
+
 (provide 'plan-polsl-notes-test)
 ;;; plan-polsl-notes-test.el ends here
