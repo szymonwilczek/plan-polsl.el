@@ -543,6 +543,10 @@ first one."
       (when win
         (select-window win)))))
 
+(defun plan-polsl-view-date-at-point ()
+  "Return the date \"YYYY-MM-DD\" of the timetable day at point, or nil."
+  (get-text-property (point) 'plan-polsl-date))
+
 ;;;###autoload
 (defun plan-polsl-view-show-detail ()
   "Show interactive detail popup window for the class entry at point."
@@ -704,7 +708,8 @@ minus one column for the continuation glyph, but at most
 
           ;; days, weekend only when it has classes
           (dotimes (i 7)
-            (let* ((day-lines (aref rendered-days i))
+            (let* ((day-beg nil)
+                   (day-lines (aref rendered-days i))
                    (day-entries (aref day-groups i))
                    (day-time (time-add monday-time (days-to-time i)))
                    (day-date-str (format-time-string "%d.%m.%Y" day-time))
@@ -712,6 +717,7 @@ minus one column for the continuation glyph, but at most
                                "Sobota" "Niedziela"])
                    (day-title (format "%s (%s)" (aref day-names i) day-date-str)))
               (when (or (< i 5) day-lines)
+                (setq day-beg (point))
 		(insert (propertize (format "%s\n" day-title) 'face 'plan-polsl-day-face))
 		(insert (propertize sep-line 'face 'font-lock-comment-face) "\n")
 		(if day-lines
@@ -722,7 +728,9 @@ minus one column for the continuation glyph, but at most
 				 (put-text-property beg (point) 'mouse-face 'highlight)))
                              day-lines day-entries)
                   (insert (propertize "  (Brak zaplanowanych zajęć)\n" 'face 'font-lock-comment-face)))
-		(insert "\n")))))
+		(insert "\n")
+                (put-text-property day-beg (point) 'plan-polsl-date
+                                   (format-time-string "%F" day-time))))))
         (goto-char (point-min)))
       buf)))
 

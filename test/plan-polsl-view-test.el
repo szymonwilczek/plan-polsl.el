@@ -43,6 +43,17 @@
                                      (should (search-forward "08:30 - 10:00" nil t))
                                      (should (search-forward "* PSy" nil t))))
 
+(ert-deftest plan-polsl-view-test-date-at-point ()
+  (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
+                                     (should-not (plan-polsl-view-date-at-point))
+                                     (search-forward "Poniedziałek")
+                                     (should (equal (plan-polsl-view-date-at-point) "2026-10-05"))
+                                     (search-forward "08:30")
+                                     (should (equal (plan-polsl-view-date-at-point) "2026-10-05"))
+                                     (search-forward "Wtorek")
+                                     (forward-line 2)
+                                     (should (equal (plan-polsl-view-date-at-point) "2026-10-06"))))
+
 (ert-deftest plan-polsl-view-test-week-navigation ()
   (plan-polsl-view-test--with-buffer (encode-time 0 0 0 5 10 2026)
                                      (plan-polsl-next-week)
